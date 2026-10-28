@@ -28,7 +28,7 @@ export default function AuditTrailPage({ role }: { role: HumanRole }) {
     before: event.before, after: event.after, reason: event.reason, detail: event.detail,
   })))
 
-  if (role === 'Institution') return <Card className="p-8"><div className="mx-auto max-w-lg text-center"><h1 className="font-heading text-2xl text-forest">Audit access is restricted</h1><p className="mt-2 text-sm text-sage">The read-only audit trail is available to official demo roles.</p></div></Card>
+  if (role === 'Institution') return <Card className="p-8"><div className="mx-auto max-w-lg text-center"><h1 className="font-heading text-2xl text-forest">Audit access is restricted</h1><p className="mt-2 text-sm text-sage">The read-only audit trail is available to configured official roles.</p></div></Card>
 
   return <>
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4"><div><div className="eyebrow">09 / RECORD INTEGRITY</div><h1 className="page-title">Append-only audit trail</h1><p className="mt-2 text-sm text-sage">Workflow events are read-only here. Filters and export never modify the underlying event record.</p></div><Button variant="secondary" onClick={exportRows}><Download size={14} /> Export CSV</Button></div>

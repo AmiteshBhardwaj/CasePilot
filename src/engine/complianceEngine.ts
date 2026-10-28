@@ -32,7 +32,7 @@ export function runComplianceEngine(documents: DocumentRecord[], undertakings: U
       title: `Compliance escalated to ${escalationLevel}`,
       message: `${input.name} is ${input.daysPastDue} days overdue; follow-up has moved to ${escalationLevel}.`,
       institutionId: input.institutionId, caseId: input.caseId, escalationLevel, dueAt: input.dueAt,
-      createdAt: now.toISOString(), read: false, channels, isDemoData: true,
+      createdAt: now.toISOString(), read: false, channels,
     })
   }
   for (const document of documents) {
@@ -44,13 +44,13 @@ export function runComplianceEngine(documents: DocumentRecord[], undertakings: U
       if (expired || threshold !== undefined) {
         const window = expired ? 'overdue' : String(threshold)
         const message = expired ? `${document.name} expired ${Math.abs(state.daysRemaining)} days ago.` : `${document.name} expires in ${state.daysRemaining} days.`
-        alerts.push({ id: `compliance:${document.id}:${window}`, type: 'Compliance', severity: expired || state.daysRemaining <= (alertDays.at(-1) ?? 7) ? 'Critical' : 'Warning', title: expired ? 'Document expired' : `Document expires within ${window} days`, message, institutionId: document.institutionId, caseId: document.caseId, createdAt: now.toISOString(), read: false, channels, isDemoData: true })
+        alerts.push({ id: `compliance:${document.id}:${window}`, type: 'Compliance', severity: expired || state.daysRemaining <= (alertDays.at(-1) ?? 7) ? 'Critical' : 'Warning', title: expired ? 'Document expired' : `Document expires within ${window} days`, message, institutionId: document.institutionId, caseId: document.caseId, createdAt: now.toISOString(), read: false, channels, })
       }
       if (state.daysRemaining < 0 && document.expiresAt) addEscalation({ id: document.id, name: document.name, institutionId: document.institutionId, caseId: document.caseId, dueAt: document.expiresAt, daysPastDue: Math.abs(state.daysRemaining) })
     }
     if (document.verification === 'Pending' || document.verification === 'Needs clarification') {
       const message = `${document.name} has ${document.verification.toLowerCase()} evidence status and needs a human verification action.`
-      alerts.push({ id: `evidence:${document.id}:${document.verification}`, type: 'Evidence', severity: 'Warning', title: 'Evidence needs review', message, institutionId: document.institutionId, caseId: document.caseId, createdAt: now.toISOString(), read: false, channels, isDemoData: true })
+      alerts.push({ id: `evidence:${document.id}:${document.verification}`, type: 'Evidence', severity: 'Warning', title: 'Evidence needs review', message, institutionId: document.institutionId, caseId: document.caseId, createdAt: now.toISOString(), read: false, channels, })
     }
   }
   const updatedUndertakings = undertakings.map((undertaking) => {
@@ -62,7 +62,7 @@ export function runComplianceEngine(documents: DocumentRecord[], undertakings: U
       const threshold = alertDays.filter((days) => daysRemaining <= days).sort((a, b) => a - b)[0]
       const alertLevel = overdue ? 'overdue' : String(threshold)
       const message = overdue ? `${undertaking.title} is ${Math.abs(daysRemaining)} days overdue.` : `${undertaking.title} is due in ${daysRemaining} days and remains open until human review accepts the evidence.`
-      alerts.push({ id: `undertaking:${undertaking.id}:${alertLevel}`, type: 'Compliance', severity: overdue || daysRemaining <= (alertDays.at(-1) ?? 7) ? 'Critical' : 'Warning', title: overdue ? 'Undertaking overdue' : `Undertaking due within ${alertLevel} days`, message, institutionId: undertaking.institutionId, caseId: undertaking.caseId, createdAt: now.toISOString(), read: false, channels, isDemoData: true })
+      alerts.push({ id: `undertaking:${undertaking.id}:${alertLevel}`, type: 'Compliance', severity: overdue || daysRemaining <= (alertDays.at(-1) ?? 7) ? 'Critical' : 'Warning', title: overdue ? 'Undertaking overdue' : `Undertaking due within ${alertLevel} days`, message, institutionId: undertaking.institutionId, caseId: undertaking.caseId, createdAt: now.toISOString(), read: false, channels, })
     }
     if (overdue) addEscalation({ id: undertaking.id, name: undertaking.title, institutionId: undertaking.institutionId, caseId: undertaking.caseId, dueAt: undertaking.dueAt, daysPastDue: Math.abs(daysRemaining) })
     if (nextStatus !== undertaking.status) {

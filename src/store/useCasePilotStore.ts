@@ -1,27 +1,22 @@
-import { addDays } from 'date-fns'
 import { create } from 'zustand'
 import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware'
 import { z } from 'zod'
-import { alertSchema, auditEventSchema, caseSchema, committeeSchema, demoDatasetSchema, documentSchema, humanRoleSchema, institutionSchema, observationSchema, ruleProposalSchema, ruleVersionSchema, undertakingSchema, workflowRuleConfigSchema, officerSchema, type Alert, type AuditEvent, type CaseRecord, type DemoDataset, type DocumentRecord, type HumanRole, type Observation, type Undertaking, type WorkflowRuleConfig } from '@/data/schemas'
-import { createDemoDataset, DEMO_START } from '@/data/seed'
-import { runSlaEngine } from '@/engine/slaEngine'
-import { runEscalationEngine, defaultEscalationRules } from '@/engine/escalationEngine'
-import { runComplianceEngine } from '@/engine/complianceEngine'
-import { seedDemoScenario, type DemoScenario } from '@/engine/demoScenarioEngine'
-import { demoActorName } from '@/data/demoActors'
+import { alertSchema, auditEventSchema, caseSchema, committeeSchema, casePilotDatasetSchema, documentSchema, humanRoleSchema, institutionSchema, observationSchema, ruleProposalSchema, ruleVersionSchema, undertakingSchema, workflowRuleConfigSchema, officerSchema, type Alert, type AuditEvent, type CaseRecord, type CasePilotDataset, type DocumentRecord, type HumanRole, type Observation, type Undertaking, type WorkflowRuleConfig } from '@/data/schemas'
+import { createEmptyDataset } from '@/data/emptyDataset'
+import { casePilotApi, DataSourceUnavailableError } from '@/api/casePilotApi'
 import { approveWorkflowRules, proposeWorkflowRules } from '@/engine/rulesEngine'
 
-type StoreState = DemoDataset & {
+type StoreState = CasePilotDataset & {
   role: HumanRole | null
-  demoNow: string
+  actorName: string
   sidebarCollapsed: boolean
+  dataSourceStatus: 'not-configured' | 'loading' | 'connected' | 'error'
+  dataSourceError: string
   now: () => Date
   setRole: (role: HumanRole | null) => void
+  setActorName: (name: string) => void
   toggleSidebar: () => void
-  advance: (days: number) => void
-  reset: () => void
-  resetDemoData: () => void
-  seedScenario: (scenario: DemoScenario, actorRole: HumanRole) => void
+  loadDataset: () => Promise<void>
   saveCaseAction: (caseRecord: CaseRecord, auditEvent: AuditEvent | AuditEvent[]) => void
   saveDocumentAction: (document: DocumentRecord, auditEvent: AuditEvent) => void
   createCase: (caseRecord: CaseRecord, documents: DocumentRecord[], auditEvents: AuditEvent[]) => void
@@ -35,13 +30,8 @@ type StoreState = DemoDataset & {
   approveRuleVersion: (proposalId: string, actor: { name: string; role: HumanRole }) => void
 }
 
-function appendUnique<T extends { id: string }>(current: T[], incoming: T[]): T[] {
-  const found = new Set(current.map((item) => item.id))
-  return [...incoming.filter((item) => !found.has(item.id)), ...current]
-}
-
-function initialState(): Pick<StoreState, keyof DemoDataset | 'role' | 'demoNow' | 'sidebarCollapsed'> {
-  return { ...demoDatasetSchema.parse(createDemoDataset()), role: null, demoNow: DEMO_START.toISOString(), sidebarCollapsed: false }
+function initialState(): Pick<StoreState, keyof CasePilotDataset | 'role' | 'actorName' | 'sidebarCollapsed' | 'dataSourceStatus' | 'dataSourceError'> {
+  return { ...casePilotDatasetSchema.parse(createEmptyDataset()), role: null, actorName: '', sidebarCollapsed: false, dataSourceStatus: 'not-configured', dataSourceError: '' }
 }
 
 const persistedStateSchema = z.object({
@@ -49,10 +39,10 @@ const persistedStateSchema = z.object({
   committees: z.array(committeeSchema).optional(), documents: z.array(documentSchema).optional(), observations: z.array(observationSchema).optional(),
   undertakings: z.array(undertakingSchema).optional(), alerts: z.array(alertSchema).optional(), auditEvents: z.array(auditEventSchema).optional(),
   ruleVersions: z.array(ruleVersionSchema).optional(), activeWorkflowRules: workflowRuleConfigSchema.optional(), ruleProposals: z.array(ruleProposalSchema).optional(),
-  role: humanRoleSchema.nullable().optional(), demoNow: z.string().datetime().optional(), sidebarCollapsed: z.boolean().optional(),
+  role: humanRoleSchema.nullable().optional(), actorName: z.string().optional(), sidebarCollapsed: z.boolean().optional(),
 }).passthrough()
 
-function restorePersistedState(value: unknown): Pick<StoreState, keyof DemoDataset | 'role' | 'demoNow' | 'sidebarCollapsed'> {
+function restorePersistedState(value: unknown): Pick<StoreState, keyof CasePilotDataset | 'role' | 'actorName' | 'sidebarCollapsed' | 'dataSourceStatus' | 'dataSourceError'> {
   const defaults = initialState()
   const parsed = persistedStateSchema.safeParse(value)
   if (!parsed.success) return defaults
@@ -71,14 +61,17 @@ function restorePersistedState(value: unknown): Pick<StoreState, keyof DemoDatas
     activeWorkflowRules: saved.activeWorkflowRules ?? defaults.activeWorkflowRules,
     ruleProposals: saved.ruleProposals ?? defaults.ruleProposals,
     role: saved.role === undefined ? defaults.role : saved.role,
-    demoNow: saved.demoNow ?? defaults.demoNow,
+    actorName: saved.actorName ?? defaults.actorName,
     sidebarCollapsed: saved.sidebarCollapsed ?? defaults.sidebarCollapsed,
+    dataSourceStatus: defaults.dataSourceStatus,
+    dataSourceError: defaults.dataSourceError,
   }
 }
 
 const guardedStorage: StateStorage = {
   getItem: (name) => {
     try {
+      if (name === 'casepilot-workspace-v1') localStorage.removeItem('casepilot-demo-v1')
       const value = localStorage.getItem(name)
       if (value === null) return null
       JSON.parse(value)
@@ -89,7 +82,7 @@ const guardedStorage: StateStorage = {
     }
   },
   setItem: (name, value) => {
-    try { localStorage.setItem(name, value) } catch { /* in-memory demo state remains usable when storage is full */ }
+    try { localStorage.setItem(name, value) } catch { /* in-memory workspace remains usable when storage is full */ }
   },
   removeItem: (name) => {
     try { localStorage.removeItem(name) } catch { /* storage can be disabled by the browser */ }
@@ -98,41 +91,22 @@ const guardedStorage: StateStorage = {
 
 export const useCasePilotStore = create<StoreState>()(persist((set, get) => ({
   ...initialState(),
-  now: () => new Date(get().demoNow),
+  now: () => new Date(),
   setRole: (role) => set({ role }),
+  setActorName: (actorName) => set({ actorName: actorName.trim() }),
   toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
-  advance: (days) => {
-    if (!Number.isFinite(days) || days <= 0) return
-    const state = get()
-    const now = addDays(new Date(state.demoNow), days)
-    const rules = state.activeWorkflowRules
-    const sla = runSlaEngine(state.cases, now, rules.stageTimelines, rules.channels)
-    const escalation = runEscalationEngine(sla.cases, now, rules.escalationRules ?? defaultEscalationRules, rules.channels)
-    const compliance = runComplianceEngine(state.documents, state.undertakings, now, rules)
-    const alerts: Alert[] = appendUnique(state.alerts, [...sla.alerts, ...escalation.alerts, ...compliance.alerts])
-    const auditEvents: AuditEvent[] = appendUnique(state.auditEvents, [...sla.auditEvents, ...escalation.auditEvents, ...compliance.auditEvents])
-    set({ demoNow: now.toISOString(), cases: escalation.cases, undertakings: compliance.undertakings, alerts, auditEvents })
-  },
-  reset: () => set({ demoNow: DEMO_START.toISOString() }),
-  resetDemoData: () => set({ ...initialState() }),
-  seedScenario: (scenario, actorRole) => {
-    const state = get()
-    const seeded = seedDemoScenario({
-      scenario,
-      cases: state.cases,
-      documents: state.documents,
-      institutions: state.institutions,
-      officers: state.officers,
-      actorName: demoActorName[actorRole],
-      actorRole,
-      now: new Date(state.demoNow),
-    })
-    set((current) => ({
-      cases: appendUnique(current.cases, seeded.cases),
-      documents: appendUnique(current.documents, seeded.documents),
-      alerts: appendUnique(current.alerts, seeded.alerts),
-      auditEvents: appendUnique(current.auditEvents, seeded.auditEvents),
-    }))
+  loadDataset: async () => {
+    if (!casePilotApi.isConfigured()) {
+      set({ dataSourceStatus: 'not-configured', dataSourceError: 'Connect an approved data service to load institutional records.' })
+      return
+    }
+    set({ dataSourceStatus: 'loading', dataSourceError: '' })
+    try {
+      const dataset = casePilotDatasetSchema.parse(await casePilotApi.getDataset())
+      set({ ...dataset, dataSourceStatus: 'connected', dataSourceError: '' })
+    } catch (error) {
+      set({ dataSourceStatus: 'error', dataSourceError: error instanceof DataSourceUnavailableError ? error.message : error instanceof Error ? error.message : 'The data service could not be reached.' })
+    }
   },
   saveCaseAction: (caseRecord, auditEvents) => set((state) => ({ cases: state.cases.map((item) => item.id === caseRecord.id ? caseRecord : item), auditEvents: [...(Array.isArray(auditEvents) ? auditEvents : [auditEvents]), ...state.auditEvents] })),
   saveDocumentAction: (document, auditEvent) => set((state) => ({
@@ -154,29 +128,45 @@ export const useCasePilotStore = create<StoreState>()(persist((set, get) => ({
   proposeRuleVersion: (draft, rationale, actor) => {
     const state = get()
     if (state.ruleProposals.some((item) => item.status === 'Pending approval')) throw new Error('Approve or reject the existing draft before proposing another version.')
-    const result = proposeWorkflowRules(state.activeWorkflowRules, draft, { actor, rationale, now: new Date(state.demoNow) })
+    const result = proposeWorkflowRules(state.activeWorkflowRules, draft, { actor, rationale, now: get().now() })
     set((current) => ({ ruleProposals: [result.proposal, ...current.ruleProposals], auditEvents: [result.auditEvent, ...current.auditEvents] }))
   },
   approveRuleVersion: (proposalId, actor) => {
     const state = get()
     const proposal = state.ruleProposals.find((item) => item.id === proposalId)
     if (!proposal) throw new Error('The workflow rule proposal no longer exists.')
-    const result = approveWorkflowRules(proposal, state.activeWorkflowRules, actor, new Date(state.demoNow))
+    const result = approveWorkflowRules(proposal, state.activeWorkflowRules, actor, get().now())
     set((current) => ({
       activeWorkflowRules: result.active,
       ruleProposals: current.ruleProposals.map((item) => item.id === proposalId ? result.proposal : item),
       ruleVersions: [
         ...current.ruleVersions.map((item) => ({ ...item, active: false })),
-        { code: `WF-${result.active.version}`, name: 'Active workflow rule set', version: result.active.version, effectiveFrom: result.active.effectiveFrom, updatedBy: actor.name, rationale: proposal.rationale, active: true, isDemoData: true as const },
+        { code: `WF-${result.active.version}`, name: 'Active workflow rule set', version: result.active.version, effectiveFrom: result.active.effectiveFrom, updatedBy: actor.name, rationale: proposal.rationale, active: true, },
       ],
       auditEvents: [result.auditEvent, ...current.auditEvents],
     }))
   },
 }), {
-  name: 'casepilot-demo-v1',
-  version: 2,
+  name: 'casepilot-workspace-v1',
+  version: 1,
   storage: createJSONStorage(() => guardedStorage),
   migrate: (persistedState) => restorePersistedState(persistedState),
   merge: (persistedState, currentState) => ({ ...currentState, ...restorePersistedState(persistedState) }),
-  partialize: (state) => ({ ...state, now: undefined } as unknown as StoreState),
+  partialize: (state) => ({
+    institutions: state.institutions,
+    cases: state.cases,
+    officers: state.officers,
+    committees: state.committees,
+    documents: state.documents,
+    observations: state.observations,
+    undertakings: state.undertakings,
+    alerts: state.alerts,
+    auditEvents: state.auditEvents,
+    ruleVersions: state.ruleVersions,
+    activeWorkflowRules: state.activeWorkflowRules,
+    ruleProposals: state.ruleProposals,
+    role: state.role,
+    actorName: state.actorName,
+    sidebarCollapsed: state.sidebarCollapsed,
+  }),
 }))

@@ -27,7 +27,7 @@ export function submitApplication(input: {
   const caseRecord: CaseRecord = {
     id: input.caseId, institutionId: input.institution.id, applicationType: input.applicationType, title: `${input.applicationType} application`, region: input.institution.region,
     route, stages, currentStage: route.steps[0], status: 'On track', submittedAt: now.toISOString(), updatedAt: now.toISOString(), assignedOfficerId: input.assignedOfficerId,
-    assignedCommitteeId: input.assignedCommitteeId, returnedCount: 0, escalationLevel: 'None', evidenceVerified: false, isDemoData: true,
+    assignedCommitteeId: input.assignedCommitteeId, returnedCount: 0, escalationLevel: 'None', evidenceVerified: false,
   }
   const event = humanEvent(now, input.actor, 'Application submitted', 'Case', caseRecord.id, `${input.actor.name} submitted ${input.applicationType}; routing applied ${route.ruleCode} (${route.category}) because ${route.reason}`)
   return { caseRecord, auditEvents: [event, auditEvent] }
@@ -37,7 +37,7 @@ export function scheduleEvc(caseRecord: CaseRecord, input: { actor: HumanActor; 
   const now = input.now ?? new Date()
   if (!['Regional Officer', 'Bureau Officer'].includes(input.actor.role)) throw new Error('Only a Regional Officer or Bureau Officer can schedule an EVC.')
   if (!caseRecord.route.steps.includes('EVC') || caseRecord.currentStage !== 'EVC') throw new Error('EVC can only be scheduled when the case is at its EVC stage.')
-  if (input.scheduledAt.getTime() <= now.getTime()) throw new Error('Choose an EVC date and time after the demo clock.')
+  if (input.scheduledAt.getTime() <= now.getTime()) throw new Error('Choose an EVC date and time after the current date and time.')
   const nextCase = { ...caseRecord, evcScheduledAt: input.scheduledAt.toISOString(), updatedAt: now.toISOString() }
   const auditEvent = humanEvent(now, input.actor, 'EVC scheduled', 'Case', caseRecord.id, `${input.actor.name} scheduled the EVC for ${input.scheduledAt.toISOString()}.`)
   auditEvent.before = caseRecord.evcScheduledAt ?? 'Unscheduled'
@@ -109,7 +109,7 @@ export function uploadEvidence(input: {
   if (input.actor.role !== 'Institution') throw new Error('Only the institution can submit its evidence files.')
   const documents = input.files.filter((file) => file.name.trim()).map((file, index) => ({
     id: `upload-${input.caseId}-${index + 1}`, institutionId: input.institutionId, caseId: input.caseId,
-    name: file.name.trim(), kind: file.kind, uploadedAt: now.toISOString(), verification: 'Pending' as const, isDemoData: true as const,
+    name: file.name.trim(), kind: file.kind, uploadedAt: now.toISOString(), verification: 'Pending' as const,
   }))
   const auditEvents = documents.map((document) => {
     const auditEvent = humanEvent(now, input.actor, 'Evidence uploaded', 'Document', document.id, `${input.actor.name} attached ${document.name} to ${input.caseId}; human verification is pending.`)
@@ -145,7 +145,7 @@ export function createObservation(input: {
 }): { observation: Observation; auditEvent: AuditEvent } {
   const now = input.now ?? new Date()
   if (!input.text.trim()) throw new Error('Observation text is required.')
-  const observation: Observation = { id: input.id, caseId: input.caseId, text: input.text.trim(), raisedBy: input.actor.name, raisedAt: now.toISOString(), status: 'Open', isDemoData: true }
+  const observation: Observation = { id: input.id, caseId: input.caseId, text: input.text.trim(), raisedBy: input.actor.name, raisedAt: now.toISOString(), status: 'Open', }
   const auditEvent = humanEvent(now, input.actor, 'Observation raised', 'Case', input.caseId, `${input.actor.name} raised an observation: ${observation.text}`)
   auditEvent.after = `Observation ${observation.id}: ${observation.text}`
   return { observation, auditEvent }

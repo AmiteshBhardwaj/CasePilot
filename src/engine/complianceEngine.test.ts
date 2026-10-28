@@ -3,8 +3,8 @@ import type { DocumentRecord, Undertaking } from '@/data/schemas'
 import { documentValidity, runComplianceEngine } from './complianceEngine'
 
 const now = new Date('2026-10-28T00:00:00Z')
-const document: DocumentRecord = { id: 'doc-001', institutionId: 'inst-001', name: 'Registered lease deed', kind: 'Lease deed', uploadedAt: '2026-01-01T00:00:00Z', expiresAt: '2026-11-02T00:00:00Z', verification: 'Pending', isDemoData: true }
-const undertaking: Undertaking = { id: 'und-001', institutionId: 'inst-001', title: 'Fire safety renewal undertaking', dueAt: '2026-10-20T00:00:00Z', status: 'Pending', isDemoData: true }
+const document: DocumentRecord = { id: 'doc-001', institutionId: 'inst-001', name: 'Registered lease deed', kind: 'Lease deed', uploadedAt: '2026-01-01T00:00:00Z', expiresAt: '2026-11-02T00:00:00Z', verification: 'Pending', }
+const undertaking: Undertaking = { id: 'und-001', institutionId: 'inst-001', title: 'Fire safety renewal undertaking', dueAt: '2026-10-20T00:00:00Z', status: 'Pending', }
 
 describe('complianceEngine', () => {
   it('assigns the seven-day document expiry band', () => {

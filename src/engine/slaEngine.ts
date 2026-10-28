@@ -53,7 +53,7 @@ export function runSlaEngine(cases: CaseRecord[], now = new Date(), timelines: W
         id: `sla:${caseRecord.id}:${result.status}`, type: 'SLA', severity: result.status === 'Overdue' ? 'Critical' : 'Warning',
         title: result.status === 'Overdue' ? 'Stage SLA overdue' : 'Stage due soon',
         message: `${caseRecord.id} is ${result.status === 'Overdue' ? `${Math.abs(result.daysRemaining)} days past` : `due in ${result.daysRemaining} days`} its ${caseRecord.currentStage} timeline.`,
-        caseId: caseRecord.id, createdAt: now.toISOString(), read: false, isDemoData: true,
+        caseId: caseRecord.id, createdAt: now.toISOString(), read: false,
         channels,
       })
     }

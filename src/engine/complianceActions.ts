@@ -34,9 +34,9 @@ export function submitDocumentRenewal(input: { id: string; institutionId: string
   const now = input.now ?? new Date()
   if (input.actor.role !== 'Institution') throw new Error('Only the institution can submit renewal evidence.')
   if (!input.name.trim()) throw new Error('A renewal document name is required.')
-  if (input.expiresAt.getTime() <= now.getTime()) throw new Error('The renewal expiry date must be after the current demo date.')
+  if (input.expiresAt.getTime() <= now.getTime()) throw new Error('The renewal expiry date must be after the current date.')
   const at = now.toISOString()
-  const document: DocumentRecord = { id: input.id, institutionId: input.institutionId, name: input.name.trim(), kind: input.kind, uploadedAt: at, expiresAt: input.expiresAt.toISOString(), verification: 'Pending', isDemoData: true }
+  const document: DocumentRecord = { id: input.id, institutionId: input.institutionId, name: input.name.trim(), kind: input.kind, uploadedAt: at, expiresAt: input.expiresAt.toISOString(), verification: 'Pending', }
   const auditEvent = makeAuditEvent({ id: `document-renewal:${input.id}:${at}`, at, actorName: input.actor.name, actorRole: input.actor.role, action: 'Renewal evidence submitted', entityType: 'Document', entityId: document.id, detail: `${input.actor.name} submitted ${document.name} for human verification; the new validity record is pending review.`, before: 'No renewal record', after: `Pending verification · expires ${document.expiresAt}` })
   return { document, auditEvent }
 }

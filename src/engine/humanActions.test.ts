@@ -7,9 +7,9 @@ const decisionCase: CaseRecord = {
   id: 'CP-2026-NR-04821', institutionId: 'inst-001', applicationType: 'Extension of Approval', title: 'Approval renewal', region: 'Northern',
   route: { steps: ['Authority Decision'], category: 'Only Scrutiny', ruleCode: 'RT-TEST', reason: 'Test route', version: '2026.1' },
   stages: [{ id: 's1', label: 'Authority Decision', status: 'In progress', enteredAt: now.toISOString(), dueAt: now.toISOString() }],
-  currentStage: 'Authority Decision', status: 'On track', submittedAt: now.toISOString(), updatedAt: now.toISOString(), assignedOfficerId: 'off-11', returnedCount: 0, escalationLevel: 'None', evidenceVerified: false, isDemoData: true,
+  currentStage: 'Authority Decision', status: 'On track', submittedAt: now.toISOString(), updatedAt: now.toISOString(), assignedOfficerId: 'off-11', returnedCount: 0, escalationLevel: 'None', evidenceVerified: false,
 }
-const document: DocumentRecord = { id: 'doc-001', institutionId: 'inst-001', name: 'Lease deed', kind: 'Lease deed', uploadedAt: now.toISOString(), verification: 'Pending', isDemoData: true }
+const document: DocumentRecord = { id: 'doc-001', institutionId: 'inst-001', name: 'Lease deed', kind: 'Lease deed', uploadedAt: now.toISOString(), verification: 'Pending', }
 
 describe('explicit human actions', () => {
   it('requires Authority role and records the officer name for decisions', () => {

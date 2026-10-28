@@ -7,7 +7,7 @@ const caseRecord: CaseRecord = {
   id: 'CP-2026-NR-04821', institutionId: 'inst-001', applicationType: 'Extension of Approval', title: 'Approval renewal', region: 'Northern',
   route: { steps: ['Scrutiny', 'EVC', 'Authority Decision'], category: 'Scrutiny+EVC', ruleCode: 'RT-EOA-02', reason: 'Test route', version: '2026.1' },
   stages: [{ id: 's1', label: 'Scrutiny', status: 'In progress', enteredAt: '2026-10-10T00:00:00Z', dueAt: '2026-10-31T00:00:00Z' }],
-  currentStage: 'Scrutiny', status: 'On track', submittedAt: '2026-10-10T00:00:00Z', updatedAt: now.toISOString(), assignedOfficerId: 'off-01', returnedCount: 0, escalationLevel: 'None', evidenceVerified: false, isDemoData: true,
+  currentStage: 'Scrutiny', status: 'On track', submittedAt: '2026-10-10T00:00:00Z', updatedAt: now.toISOString(), assignedOfficerId: 'off-01', returnedCount: 0, escalationLevel: 'None', evidenceVerified: false,
 }
 
 describe('slaEngine', () => {

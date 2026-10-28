@@ -1,21 +1,19 @@
 import { addDays } from 'date-fns'
 import { describe, expect, it } from 'vitest'
-import { createDemoDataset } from '@/data/seed'
+import type { Committee, Institution, Officer } from '@/data/schemas'
 import { completeCurrentStage } from './stageMachine'
 import { confirmCaseSummary, draftCaseSummary, recordCommitteeOutcome, scheduleEvc, submitApplication } from './workflowActions'
 
 const now = new Date('2026-10-28T09:00:00+05:30')
+const institution: Institution = { id: 'test-institution', name: 'Test Technical Institute', shortName: 'Test Institute', region: 'Northern', state: 'Delhi', city: 'New Delhi', institutionType: 'Engineering', aicteId: 'TEST-ID', contactName: 'Test Applicant', contactEmail: 'applicant@example.test' }
+const officer: Officer = { id: 'test-regional-officer', name: 'Test Regional Officer', role: 'Regional Officer', region: 'Northern', designation: 'Regional Officer', email: 'officer@example.test' }
+const committee: Committee = { id: 'test-committee', name: 'Test SAC', kind: 'SAC', region: 'Northern', chair: 'Test Chair', memberCount: 3 }
 
 describe('workflow actions', () => {
   it('routes a submitted application and records the human submitter and system rule event', () => {
-    const data = createDemoDataset()
-    const institution = data.institutions[0]
-    const officer = data.officers.find((item) => item.role === 'Regional Officer' && item.region === institution.region)
-    const committee = data.committees.find((item) => item.region === institution.region) ?? data.committees[0]
-    expect(officer).toBeDefined()
     const result = submitApplication({
-      caseId: 'CP-2026-NR-90001', institution, applicationType: 'New Institution',
-      assignedOfficerId: officer!.id, assignedCommitteeId: committee.id,
+      caseId: 'CP-TEST-90001', institution, applicationType: 'New Institution',
+      assignedOfficerId: officer.id, assignedCommitteeId: committee.id,
       actor: { name: 'Sanjay Prasad', role: 'Institution' }, now,
     })
     expect(result.caseRecord.route.steps).toEqual(['Scrutiny', 'EVC', 'SAC/SHC', 'Authority Decision'])
@@ -25,12 +23,8 @@ describe('workflow actions', () => {
   })
 
   it('schedules EVC and requires a named Committee member with notes for an outcome', () => {
-    const data = createDemoDataset()
-    const institution = data.institutions[0]
-    const officer = data.officers.find((item) => item.role === 'Regional Officer' && item.region === institution.region)!
-    const committee = data.committees.find((item) => item.region === institution.region) ?? data.committees[0]
     const submitted = submitApplication({
-      caseId: 'CP-2026-NR-90002', institution, applicationType: 'New Institution', assignedOfficerId: officer.id,
+      caseId: 'CP-TEST-90002', institution, applicationType: 'New Institution', assignedOfficerId: officer.id,
       assignedCommitteeId: committee.id, actor: { name: 'Sanjay Prasad', role: 'Institution' }, now,
     }).caseRecord
     const scrutiny = completeCurrentStage(submitted, { name: officer.name, role: 'Regional Officer' }, now).caseRecord
@@ -46,12 +40,8 @@ describe('workflow actions', () => {
   })
 
   it('saves an electronic summary only after an authorized officer confirms it', () => {
-    const data = createDemoDataset()
-    const institution = data.institutions[0]
-    const officer = data.officers.find((item) => item.role === 'Regional Officer' && item.region === institution.region)!
-    const committee = data.committees.find((item) => item.region === institution.region) ?? data.committees[0]
     const record = submitApplication({
-      caseId: 'CP-2026-NR-90003', institution, applicationType: 'New Institution', assignedOfficerId: officer.id,
+      caseId: 'CP-TEST-90003', institution, applicationType: 'New Institution', assignedOfficerId: officer.id,
       assignedCommitteeId: committee.id, actor: { name: 'Sanjay Prasad', role: 'Institution' }, now,
     }).caseRecord
     const summary = draftCaseSummary(record, institution.name)

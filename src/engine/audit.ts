@@ -4,7 +4,7 @@ export function makeAuditEvent(input: {
   id: string; at: string; actorName: string; actorRole: Role; action: string;
   entityType: AuditEvent['entityType']; entityId: string; detail: string; before?: string; after?: string; reason?: string;
 }): AuditEvent {
-  return { ...input, isDemoData: true }
+  return { ...input, }
 }
 
 export const ENGINE_ACTOR = { actorName: 'CasePilot workflow engine', actorRole: 'System' as const }

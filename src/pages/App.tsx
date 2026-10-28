@@ -1,10 +1,10 @@
-import { lazy, Suspense, useState, type ReactNode } from 'react'
+import { lazy, Suspense, useEffect, type ReactNode } from 'react'
 import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useNavigate } from 'react-router-dom'
-import { Activity, AlertTriangle, ArrowDownRight, ArrowUpRight, Bell, BookOpen, Building2, CalendarClock, ChartNoAxesCombined, ChevronDown, ClipboardCheck, Clock3, FileText, Files, LayoutDashboard, Menu, RotateCcw, Search, Settings2, ShieldCheck, SlidersHorizontal, Sparkles, Users, Workflow, X } from 'lucide-react'
+import { Activity, ArrowUpRight, Bell, BookOpen, Building2, CalendarClock, ChartNoAxesCombined, ChevronDown, ClipboardCheck, FileText, Files, LayoutDashboard, Menu, Search, Settings2, ShieldCheck, SlidersHorizontal, Users, Workflow } from 'lucide-react'
 import { format } from 'date-fns'
 import type { HumanRole } from '@/data/schemas'
 import { useCasePilotStore } from '@/store/useCasePilotStore'
-import { Button, Card, Select, Timeline } from '@/components/ui'
+import { Card, Select, Timeline } from '@/components/ui'
 import { Skeleton } from '@/components/ui'
 const LandingPage = lazy(() => import('@/pages/LandingPage'))
 const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
@@ -43,10 +43,12 @@ function PublicLoading() {
 
 function LoginPage() {
   const role = useCasePilotStore((state) => state.role)
+  const actorName = useCasePilotStore((state) => state.actorName)
   const setRole = useCasePilotStore((state) => state.setRole)
+  const setActorName = useCasePilotStore((state) => state.setActorName)
   const navigate = useNavigate()
   const choose = (nextRole: HumanRole) => { setRole(nextRole); navigate('/app', { replace: true }) }
-  if (role) return <Navigate to="/app" replace />
+  if (role && actorName.trim()) return <Navigate to="/app" replace />
   const roles: Array<{ role: HumanRole; detail: string; icon: typeof Building2 }> = [
     { role: 'Institution', detail: 'Submit responses and monitor obligations', icon: Building2 },
     { role: 'Regional Officer', detail: 'Review applications and coordinate EVC', icon: ClipboardCheck },
@@ -56,37 +58,37 @@ function LoginPage() {
   ]
   return <main className="login-shell"><Card className="login-card">
     <div className="flex items-center gap-3"><span className="grid h-12 w-12 place-items-center rounded-2xl bg-forest text-paper"><Workflow size={23} /></span><div><div className="eyebrow">Smart India Hackathon 2026 · PS 26262</div><h1 className="font-heading text-3xl text-forest">CasePilot</h1></div></div>
-    <p className="mt-4 text-sm leading-6 text-sage">Choose a demo role to enter the approval workflow. This prototype has no real authentication.</p>
-    <div className="mt-6 space-y-2">{roles.map(({ role: itemRole, detail, icon: Icon }) => <button key={itemRole} onClick={() => choose(itemRole)} className="flex w-full items-center gap-3 rounded-2xl border border-[var(--hairline)] bg-white/40 p-3 text-left transition hover:border-sage hover:bg-pale-sage/50"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-pale-sage text-forest"><Icon size={18} /></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-forest">{itemRole}</span><span className="mt-0.5 block text-xs text-sage">{detail}</span></span><ArrowUpRight size={16} className="text-sage" /></button>)}</div>
-    <p className="mt-6 border-t border-[var(--hairline)] pt-4 text-xs leading-5 text-sage">Demo data only. Statutory scrutiny, verification, inspection and decisions remain with human officials.</p>
+    <p className="mt-4 text-sm leading-6 text-sage">Choose a workspace role. This local role picker does not verify identity or grant secure access.</p>
+    <label className="mt-5 block text-xs font-semibold text-sage">Your name for audit attribution<input className="control mt-1.5 block w-full" autoComplete="name" value={actorName} onChange={(event) => setActorName(event.target.value)} placeholder="Enter your name" /></label>
+    <div className="mt-4 space-y-2">{roles.map(({ role: itemRole, detail, icon: Icon }) => <button key={itemRole} disabled={!actorName.trim()} onClick={() => choose(itemRole)} className="flex w-full items-center gap-3 rounded-2xl border border-[var(--hairline)] bg-white/40 p-3 text-left transition hover:border-sage hover:bg-pale-sage/50 disabled:cursor-not-allowed disabled:opacity-50"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-pale-sage text-forest"><Icon size={18} /></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-forest">{itemRole}</span><span className="mt-0.5 block text-xs text-sage">{detail}</span></span><ArrowUpRight size={16} className="text-sage" /></button>)}</div>
+    <p className="mt-6 border-t border-[var(--hairline)] pt-4 text-xs leading-5 text-sage">Name and role are self-declared in this prototype. Statutory scrutiny, verification, inspection and decisions remain with human officials.</p>
   </Card></main>
 }
 
 function ProtectedShell() {
   const role = useCasePilotStore((state) => state.role)
-  if (!role) return <Navigate to="/login" replace />
+  const actorName = useCasePilotStore((state) => state.actorName)
+  const loadDataset = useCasePilotStore((state) => state.loadDataset)
+  useEffect(() => { void loadDataset() }, [loadDataset])
+  if (!role || !actorName.trim()) return <Navigate to="/login" replace />
   return <Shell role={role} />
 }
 
 function Shell({ role }: { role: HumanRole }) {
-  const [demoControlsOpen, setDemoControlsOpen] = useState(false)
   const [collapsed, toggleSidebar] = [useCasePilotStore((state) => state.sidebarCollapsed), useCasePilotStore((state) => state.toggleSidebar)]
-  const demoNow = useCasePilotStore((state) => state.demoNow)
-  const advance = useCasePilotStore((state) => state.advance)
-  const resetClock = useCasePilotStore((state) => state.reset)
-  const resetDemoData = useCasePilotStore((state) => state.resetDemoData)
-  const seedScenario = useCasePilotStore((state) => state.seedScenario)
   const setRole = useCasePilotStore((state) => state.setRole)
+  const actorName = useCasePilotStore((state) => state.actorName)
+  const dataSourceStatus = useCasePilotStore((state) => state.dataSourceStatus)
+  const dataSourceError = useCasePilotStore((state) => state.dataSourceError)
   const unread = useCasePilotStore((state) => state.alerts.filter((alert) => !alert.read).length)
   const navigation = permittedNavigation(role)
   return <div className={`app-shell ${collapsed ? 'sidebar-collapsed' : ''}`}>
     <aside className="sidebar">
       <Link to="/app" className="brand mb-8 flex items-center gap-3 px-2"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-paper text-forest"><Workflow size={20} /></span><span className="brand-copy"><span className="block font-heading text-xl leading-none">CasePilot</span><span className="mt-1 block text-[10px] text-paper/60">APPROVAL WORKFLOW</span></span></Link>
-      <div className="sidebar-section-title mb-2 px-3 font-mono text-[9px] uppercase tracking-[.16em] text-paper/45">Workspace</div>
+      <div className="sidebar-section-title mb-2 px-3 font-mono text-[9px] uppercase tracking-[.16em] text-paper/60">Workspace</div>
       <nav className="sidebar-nav flex flex-col gap-1">{navigation.map(({ to, label, icon: Icon }) => <NavLink key={to} to={to} end={to === '/app'} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} title={collapsed ? label : undefined}><Icon size={18} /><span className="nav-copy">{label}</span></NavLink>)}</nav>
       <div className="mt-auto">
-        <div className="sidebar-note mb-3 rounded-2xl border border-white/10 bg-white/5 p-3"><div className="flex items-center gap-2 text-xs font-semibold"><Sparkles size={14} className="text-mustard" />Demo workspace</div><p className="mt-1.5 text-[11px] leading-4 text-paper/60">Every record is clearly marked as illustrative sample data.</p></div>
-        <button onClick={resetDemoData} className="nav-link w-full text-left" title="Reset demo data"><RotateCcw size={17} /><span className="nav-copy">Reset demo data</span></button>
+        <div className="sidebar-note mb-3 rounded-2xl border border-white/10 bg-white/5 p-3"><div className="flex items-center gap-2 text-xs font-semibold"><span className={`h-2 w-2 rounded-full ${dataSourceStatus === 'connected' ? 'bg-[#8EAD93]' : dataSourceStatus === 'error' ? 'bg-terracotta' : 'bg-mustard'}`} />{dataSourceStatus === 'connected' ? 'Data service connected' : dataSourceStatus === 'loading' ? 'Connecting data service' : 'No data service'}</div><p className="mt-1.5 text-[11px] leading-4 text-paper/60">{dataSourceError || 'Connect an approved service to load actual records.'}</p></div>
         <button onClick={toggleSidebar} className="sidebar-toggle nav-link mt-1 w-full" title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}><Menu size={17} /><span className="nav-copy">Collapse menu</span></button>
       </div>
     </aside>
@@ -95,22 +97,11 @@ function Shell({ role }: { role: HumanRole }) {
         <Link to="/app/cases" className="hidden min-w-56 items-center gap-2 rounded-xl border border-[var(--hairline)] bg-paper px-3 py-2 text-left text-xs text-sage md:flex"><Search size={15} /><span className="flex-1">Search cases, institutions…</span><span className="mono rounded-md bg-cream px-1.5 py-0.5 text-[9px]">⌘ K</span></Link>
         <div className="ml-auto flex items-center gap-2 sm:gap-3">
           <Link to="/app/alerts" className="relative grid h-10 w-10 place-items-center rounded-xl border border-[var(--hairline)] bg-paper text-forest" aria-label={`Alerts, ${unread} unread`}><Bell size={17} />{unread > 0 && <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-rust px-1 text-[9px] font-bold text-white">{unread > 99 ? '99+' : unread}</span>}</Link>
-          <button onClick={() => setDemoControlsOpen(true)} aria-haspopup="dialog" aria-expanded={demoControlsOpen} className="flex items-center gap-2 rounded-xl border border-[var(--hairline)] bg-paper px-3 py-2 text-left"><Clock3 size={15} className="text-sage" /><span className="mono text-[10px] text-forest">{format(new Date(demoNow), 'dd MMM · HH:mm')}</span><span className="hidden rounded-lg bg-pale-sage px-2 py-1 text-[10px] font-semibold text-forest sm:inline">Demo controls</span></button>
-          <label className="flex items-center gap-2 rounded-xl border border-[var(--hairline)] bg-paper px-2.5 py-2"><span className="hidden text-[10px] text-sage sm:inline">Viewing as</span><Select aria-label="Switch demo role" value={role} onChange={(event) => setRole(event.target.value as HumanRole)} className="!border-0 !bg-transparent !p-0 !text-xs !font-semibold !text-forest focus:!ring-0">{['Institution', 'Regional Officer', 'Bureau Officer', 'Committee', 'Authority'].map((item) => <option key={item}>{item}</option>)}</Select><ChevronDown size={12} className="text-sage" /></label>
+          <span className="hidden max-w-40 truncate text-xs text-sage lg:block">{actorName}</span>
+          <label className="flex items-center gap-2 rounded-xl border border-[var(--hairline)] bg-paper px-2.5 py-2"><span className="hidden text-[10px] text-sage sm:inline">Role</span><Select aria-label="Switch workspace role" value={role} onChange={(event) => setRole(event.target.value as HumanRole)} className="!border-0 !bg-transparent !p-0 !text-xs !font-semibold !text-forest focus:!ring-0">{['Institution', 'Regional Officer', 'Bureau Officer', 'Committee', 'Authority'].map((item) => <option key={item}>{item}</option>)}</Select><ChevronDown size={12} className="text-sage" /></label>
         </div>
       </header>
-      {demoControlsOpen && <div className="fixed inset-0 z-50 bg-ink/25" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setDemoControlsOpen(false) }}>
-        <section role="dialog" aria-modal="true" aria-labelledby="demo-controls-title" className="surface absolute right-3 top-3 max-h-[calc(100vh-24px)] w-[min(420px,calc(100vw-24px))] overflow-y-auto p-5 shadow-[0_24px_70px_rgba(35,43,38,.22)] sm:right-6 sm:top-6">
-          <div className="flex items-start justify-between gap-4"><div><div className="eyebrow">DEMO WORKSPACE</div><h2 id="demo-controls-title" className="mt-1 font-heading text-2xl text-forest">Clock & scenarios</h2><p className="mt-1 text-xs text-sage">Move the injected clock to recalculate SLA, escalation and compliance alerts.</p></div><button onClick={() => setDemoControlsOpen(false)} className="grid h-9 w-9 place-items-center rounded-xl border border-[var(--hairline)] text-sage" aria-label="Close demo controls"><X size={16} /></button></div>
-          <div className="mt-5 rounded-2xl bg-cream/70 p-4"><div className="section-label">CURRENT DEMO DATE</div><div className="mono mt-1 text-sm font-semibold text-forest">{format(new Date(demoNow), 'EEEE, dd MMM yyyy · HH:mm')}</div><div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">{[1, 7, 30].map((days) => <Button key={days} variant="secondary" className="justify-center !px-2 !py-2 !text-xs" onClick={() => advance(days)}>+{days} day{days > 1 ? 's' : ''}</Button>)}<Button variant="quiet" className="justify-center !px-2 !py-2 !text-xs" onClick={resetClock}><RotateCcw size={13} /> Reset clock</Button></div></div>
-          <div className="mt-5"><div className="section-label">SCENARIO SEEDS</div><p className="mt-1 text-xs leading-5 text-sage">Add one illustrative record and audit trail entry for a guided walkthrough.</p><div className="mt-3 space-y-2">{[
-            { key: 'new-institution' as const, title: 'New institution case', detail: 'Submission, route selection and scrutiny queue', icon: Building2 },
-            { key: 'lease-expiring' as const, title: 'Lease expiring in 7 days', detail: 'Document validity alert with owner and channels', icon: CalendarClock },
-            { key: 'overdue-evc' as const, title: 'Overdue EVC', detail: 'Past-due verification stage and SLA alert', icon: AlertTriangle },
-          ].map(({ key, title, detail, icon: Icon }) => <button key={key} onClick={() => seedScenario(key, role)} className="flex w-full items-center gap-3 rounded-xl border border-[var(--hairline)] bg-paper p-3 text-left transition hover:border-sage"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-pale-sage text-forest"><Icon size={16} /></span><span className="min-w-0 flex-1"><span className="block text-xs font-semibold text-forest">{title}</span><span className="mt-1 block text-[11px] leading-4 text-sage">{detail}</span></span><ArrowUpRight size={14} className="text-sage" /></button>)}</div></div>
-          <p className="mt-4 border-t border-[var(--hairline)] pt-3 text-[10px] leading-4 text-sage">Scenario seeds are demo data. They do not represent real submissions, inspections or statutory outcomes.</p>
-        </section>
-      </div>}
+      <div role="status" className="border-b border-[var(--hairline)] bg-[#F4E1B8] px-5 py-2.5 text-xs leading-5 text-[#513C18] sm:px-8"><strong>{dataSourceStatus === 'connected' ? 'Data service connected.' : dataSourceStatus === 'loading' ? 'Connecting to the data service…' : dataSourceStatus === 'error' ? 'Data service unavailable.' : 'No approved data service connected.'}</strong> {dataSourceStatus === 'connected' ? 'Records are loaded for viewing; workflow changes are not yet written back to the service.' : dataSourceError || 'Operational records are not loaded. Configure the service before using case actions.'}</div>
       <main className="page-content"><Suspense fallback={<PageLoading />}><Routes>
         <Route path="/" element={<DashboardPage role={role} />} />
         <Route path="cases" element={<CasesPage role={role} />} />
@@ -152,16 +143,12 @@ function DebugPage() {
   const undertakings = useCasePilotStore((state) => state.undertakings)
   const alerts = useCasePilotStore((state) => state.alerts)
   const events = useCasePilotStore((state) => state.auditEvents)
-  const demoNow = useCasePilotStore((state) => state.demoNow)
-  const advance = useCasePilotStore((state) => state.advance)
-  const resetClock = useCasePilotStore((state) => state.reset)
-  const resetData = useCasePilotStore((state) => state.resetDemoData)
   const complianceAlerts = alerts.filter((alert) => alert.type === 'Compliance' || alert.type === 'Evidence').length
   const engineStats = [
     { label: 'SLA monitor', value: `${cases.length} cases`, detail: `${cases.filter((item) => item.status === 'Overdue').length} overdue · ${cases.filter((item) => item.status === 'Due soon').length} due soon` },
     { label: 'Escalation ladder', value: `${cases.filter((item) => item.escalationLevel !== 'None').length} escalated`, detail: 'Regional Officer → Bureau Officer → Authority' },
     { label: 'Compliance engine', value: `${documents.length + undertakings.length} records`, detail: `${complianceAlerts} current compliance and evidence alerts` },
-    { label: 'Audit stream', value: `${events.length} events`, detail: `${alerts.length} total alerts in the demo store` },
+    { label: 'Audit stream', value: `${events.length} events`, detail: `${alerts.length} alerts in the local workspace` },
   ]
   const timelineItems = events.slice(0, 8).map((event) => ({
     title: event.action,
@@ -170,8 +157,7 @@ function DebugPage() {
     done: event.actorRole !== 'System',
   }))
   return <>
-    <PageHeading section="07 / INTERNAL DIAGNOSTICS" title="Engine console"><span className="status-chip status-neutral">Pure TypeScript rules · Demo clock</span></PageHeading>
-    <Card className="mb-5 flex flex-wrap items-center justify-between gap-4 p-5"><div><div className="section-label">CLOCK INJECTION</div><div className="mono mt-1 text-sm font-semibold text-forest">{format(new Date(demoNow), 'EEEE, dd MMM yyyy · HH:mm:ss')}</div><p className="mt-1 text-xs text-sage">Advancing time re-runs SLA, escalation and compliance evaluation; resulting records persist locally.</p></div><div className="flex gap-2"><Button variant="secondary" onClick={resetClock}><RotateCcw size={14} /> Reset clock</Button><Button variant="secondary" onClick={() => advance(7)}>Advance 7 days</Button><Button onClick={() => advance(30)}><ArrowDownRight size={14} /> Advance 30 days</Button></div></Card>
+    <PageHeading section="07 / INTERNAL DIAGNOSTICS" title="Engine console"><span className="status-chip status-neutral">Pure TypeScript rules · actual system time</span></PageHeading>
     <div className="metric-grid">{engineStats.map((item, index) => <Card key={item.label} className="p-4"><div className="section-label">0{index + 1} / ENGINE</div><h2 className="mt-2 font-heading text-2xl text-forest">{item.value}</h2><p className="mt-2 text-xs leading-5 text-sage">{item.detail}</p></Card>)}</div>
     <div className="two-column mt-5">
       <Card className="p-5">
@@ -192,10 +178,9 @@ function DebugPage() {
             </div>
           ))}
         </div>
-        <Button variant="quiet" className="mt-3 !px-0" onClick={resetData}>Reset all demo data <RotateCcw size={13} /></Button>
       </Card>
     </div>
-    <p className="mono mt-5 text-[10px] text-sage/70">Seed tag: isDemoData=true · localStorage key: casepilot-demo-v1 · engine clock: injectable Date</p>
+    <p className="mono mt-5 text-[10px] text-sage">Local browser workspace · actual records load from the configured service · system time</p>
   </>
 }
 

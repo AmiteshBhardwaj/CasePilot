@@ -1,10 +1,9 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useShallow } from 'zustand/react/shallow'
-import { addDays, format } from 'date-fns'
+import { format } from 'date-fns'
 import { AlertTriangle, CalendarClock, Check, FileText, Forward, MessageSquareText, RotateCcw, ShieldCheck, Sparkles, UserRound } from 'lucide-react'
 import type { AuditEvent, CaseRecord, HumanRole, RouteStep } from '@/data/schemas'
-import { demoActorName } from '@/data/demoActors'
 import { useCasePilotStore } from '@/store/useCasePilotStore'
 import { completeCurrentStage, resubmitReturnedCase, returnCase, revertCase } from '@/engine/stageMachine'
 import { recordDecision, recordDecisionWithUndertaking, verifyDocument } from '@/engine/humanActions'
@@ -15,6 +14,7 @@ import { Button, Card, Dialog, EmptyState, Input, Select, StageTracker, StatusCh
 type ActionResult = { caseRecord: CaseRecord; auditEvent?: AuditEvent; auditEvents?: AuditEvent[] }
 
 export default function CaseDetailPage({ role }: { role: HumanRole }) {
+  const actorName = useCasePilotStore((state) => state.actorName)
   const { caseId = '' } = useParams()
   const record = useCasePilotStore((state) => state.cases.find((item) => item.id === caseId))
   const institution = useCasePilotStore((state) => state.institutions.find((item) => item.id === record?.institutionId))
@@ -24,7 +24,7 @@ export default function CaseDetailPage({ role }: { role: HumanRole }) {
   const undertakings = useCasePilotStore(useShallow((state) => state.undertakings.filter((item) => item.caseId === caseId)))
   const alerts = useCasePilotStore(useShallow((state) => state.alerts.filter((item) => item.caseId === caseId)))
   const events = useCasePilotStore(useShallow((state) => state.auditEvents.filter((item) => item.entityId === caseId || item.entityId.startsWith(`${caseId}-`)).sort((a, b) => b.at.localeCompare(a.at))))
-  const demoNow = useCasePilotStore((state) => state.demoNow)
+  const currentTime = new Date()
   const activeWorkflowRules = useCasePilotStore((state) => state.activeWorkflowRules)
   const saveCaseAction = useCasePilotStore((state) => state.saveCaseAction)
   const saveDocumentAction = useCasePilotStore((state) => state.saveDocumentAction)
@@ -36,18 +36,17 @@ export default function CaseDetailPage({ role }: { role: HumanRole }) {
   const [outcome, setOutcome] = useState<'Recommended' | 'Not recommended' | 'Deferred'>('Recommended')
   const [committeeNotes, setCommitteeNotes] = useState('')
   const [decisionReason, setDecisionReason] = useState('')
-  const [undertakingTitle, setUndertakingTitle] = useState('Submit faculty appointment and qualification evidence')
-  const [undertakingDueDate, setUndertakingDueDate] = useState(() => format(addDays(new Date(useCasePilotStore.getState().demoNow), 30), 'yyyy-MM-dd'))
+  const [undertakingTitle, setUndertakingTitle] = useState('')
+  const [undertakingDueDate, setUndertakingDueDate] = useState('')
   const [scheduledAt, setScheduledAt] = useState('')
   const [evcNotes, setEvcNotes] = useState('')
   const [observationText, setObservationText] = useState('')
   const [summaryDraft, setSummaryDraft] = useState('')
-  const now = new Date(demoNow)
+  const now = new Date(currentTime)
 
-  const recordIsVisible = Boolean(record && (role !== 'Institution' || record.institutionId === 'inst-001') && (role !== 'Regional Officer' || record.region === 'Northern') && (role !== 'Committee' || record.assignedCommitteeId === 'com-01'))
-  if (!record || !recordIsVisible) return <EmptyState title="Case not found" description="This record is unavailable in the current demo role or may have been reset." action={<Link to="/app/cases" className="button button-secondary">Back to cases</Link>} />
+  if (!record) return <EmptyState title="Case not found" description="This record is not available in the connected workspace." action={<Link to="/app/cases" className="button button-secondary">Back to cases</Link>} />
 
-  const actor = { name: demoActorName[role], role }
+  const actor = { name: actorName, role }
   const current = record.stages.find((stage) => stage.label === record.currentStage)
   const sla = evaluateCaseSla(record, now, 5, activeWorkflowRules.stageTimelines)
   const officer = officers.find((item) => item.id === record.assignedOfficerId)
@@ -105,7 +104,7 @@ export default function CaseDetailPage({ role }: { role: HumanRole }) {
 
       {tab === 'Compliance' && <div className="grid gap-5 p-5 md:grid-cols-2"><section><div className="section-label">TIME-BOUND CONDITIONS</div><h2 className="mt-1 font-heading text-lg text-forest">Undertakings</h2>{undertakings.length ? undertakings.map((item) => <div key={item.id} className="mt-3 rounded-xl bg-cream/65 p-3"><div className="text-xs font-semibold text-forest">{item.title}</div><div className="mono mt-1 text-[10px] text-sage">Due {format(new Date(item.dueAt), 'dd MMM yyyy')} · {item.status}</div></div>) : <p className="mt-3 text-xs text-sage">No undertakings linked to this case.</p>}</section><section><div className="section-label">DOCUMENT VALIDITY</div><h2 className="mt-1 font-heading text-lg text-forest">Expiry and verification</h2>{documents.map((item) => <div key={item.id} className="mt-3 rounded-xl bg-cream/65 p-3"><div className="text-xs font-semibold text-forest">{item.name}</div><div className="mono mt-1 text-[10px] text-sage">{item.expiresAt ? `Expires ${format(new Date(item.expiresAt), 'dd MMM yyyy')}` : 'No expiry date'} · {item.verification}</div></div>)}</section></div>}
 
-      {tab === 'Alerts' && <div className="divide-y divide-[var(--hairline)]">{alerts.length ? alerts.map((item) => <div key={item.id} className="flex items-start gap-3 px-5 py-4"><span className="grid h-8 w-8 place-items-center rounded-xl bg-[#F1C1B2] text-rust"><AlertTriangle size={15} /></span><div><div className="text-sm font-semibold text-forest">{item.title}</div><div className="mt-1 text-xs text-sage">{item.message}</div><time className="mono mt-1 block text-[10px] text-sage/70">{format(new Date(item.createdAt), 'dd MMM yyyy · HH:mm')}</time></div></div>) : <EmptyState title="No case alerts" description="SLA, evidence and compliance signals linked to this case appear here." />}</div>}
+      {tab === 'Alerts' && <div className="divide-y divide-[var(--hairline)]">{alerts.length ? alerts.map((item) => <div key={item.id} className="flex items-start gap-3 px-5 py-4"><span className="grid h-8 w-8 place-items-center rounded-xl bg-[#F1C1B2] text-oxblood"><AlertTriangle size={15} /></span><div><div className="text-sm font-semibold text-forest">{item.title}</div><div className="mt-1 text-xs text-sage">{item.message}</div><time className="mono mt-1 block text-[10px] text-sage">{format(new Date(item.createdAt), 'dd MMM yyyy · HH:mm')}</time></div></div>) : <EmptyState title="No case alerts" description="SLA, evidence and compliance signals linked to this case appear here." />}</div>}
     </Card>
   </>
 }

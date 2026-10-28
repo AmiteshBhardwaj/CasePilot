@@ -93,7 +93,7 @@ export function Timeline({ items }: { items: Array<{ title: string; detail: stri
   return <ol className="space-y-0">{items.map((item, index) => <li key={`${item.at}-${index}`} className="relative flex gap-3 pb-5 last:pb-0">
     {index < items.length - 1 && <span className="absolute left-[7px] top-4 h-full w-px bg-[var(--hairline)]" />}
     <span className={`relative z-10 mt-1 h-4 w-4 rounded-full border-2 ${item.done ? 'border-sage bg-sage' : 'border-mustard bg-paper'}`} />
-    <div className="min-w-0"><p className="text-sm font-semibold text-forest">{item.title}</p><p className="mt-1 text-xs leading-5 text-sage">{item.detail}</p><time className="mono mt-1 block text-[10px] text-sage/75">{item.at}</time></div>
+    <div className="min-w-0"><p className="text-sm font-semibold text-forest">{item.title}</p><p className="mt-1 text-xs leading-5 text-sage">{item.detail}</p><time className="mono mt-1 block text-[10px] text-sage">{item.at}</time></div>
   </li>)}</ol>
 }
 

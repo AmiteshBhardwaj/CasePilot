@@ -24,26 +24,22 @@ function dueLabel(record: CaseRecord, now: Date, timelines: ReturnType<typeof us
 }
 
 export default function CasesPage({ role }: { role: HumanRole }) {
+  const actorName = useCasePilotStore((state) => state.actorName)
   const [params, setParams] = useSearchParams()
   const allCases = useCasePilotStore((state) => state.cases)
   const institutions = useCasePilotStore((state) => state.institutions)
   const officers = useCasePilotStore((state) => state.officers)
-  const demoNow = useCasePilotStore((state) => state.demoNow)
   const activeWorkflowRules = useCasePilotStore((state) => state.activeWorkflowRules)
   const saveCaseBatch = useCasePilotStore((state) => state.saveCaseBatch)
   const [selected, setSelected] = useState<string[]>([])
   const [saveName, setSaveName] = useState('')
   const [savedViews, setSavedViews] = useState(readSavedViews)
-  const now = useMemo(() => new Date(demoNow), [demoNow])
+  const now = useMemo(() => new Date(), [])
   const current = (key: string) => params.get(key) ?? ''
   const setFilter = (key: string, value: string) => setParams((old) => { const next = new URLSearchParams(old); if (value) next.set(key, value); else next.delete(key); return next }, { replace: true })
 
-  const scopedCases = allCases.filter((record) => {
-    if (role === 'Institution') return record.institutionId === 'inst-001'
-    if (role === 'Regional Officer') return record.region === 'Northern'
-    if (role === 'Committee') return record.assignedCommitteeId === 'com-01' && record.route.steps.includes('SAC/SHC')
-    return true
-  })
+  // The connected service must return only records visible to the authenticated server-side session.
+  const scopedCases = allCases
 
   const filtered = scopedCases.filter((record) => {
     const institution = institutions.find((item) => item.id === record.institutionId)
@@ -68,7 +64,7 @@ export default function CasesPage({ role }: { role: HumanRole }) {
     { id: 'region', header: 'Region', cell: ({ row }: { row: { original: CaseRecord } }) => <span className="text-xs">{row.original.region}</span> },
     { id: 'route', header: 'Route', cell: ({ row }: { row: { original: CaseRecord } }) => <span className="text-xs">{row.original.route.category}</span> },
     { id: 'stage', header: 'Stage / owner', cell: ({ row }: { row: { original: CaseRecord } }) => <div><div>{row.original.currentStage}</div><div className="mt-1 text-[10px] text-sage">{officers.find((item) => item.id === row.original.assignedOfficerId)?.name ?? 'Unassigned'}</div></div> },
-    { id: 'sla', header: 'SLA countdown', cell: ({ row }: { row: { original: CaseRecord } }) => <span className={`mono text-[10px] font-semibold ${row.original.status === 'Overdue' ? 'text-rust' : row.original.status === 'Due soon' ? 'text-[#8A641C]' : 'text-sage'}`}>{dueLabel(row.original, now, activeWorkflowRules.stageTimelines)}</span> },
+    { id: 'sla', header: 'SLA countdown', cell: ({ row }: { row: { original: CaseRecord } }) => <span className={`mono text-[10px] font-semibold ${row.original.status === 'Overdue' ? 'text-oxblood' : row.original.status === 'Due soon' ? 'text-[#8A641C]' : 'text-sage'}`}>{dueLabel(row.original, now, activeWorkflowRules.stageTimelines)}</span> },
     { id: 'status', header: 'Status', cell: ({ row }: { row: { original: CaseRecord } }) => <StatusChip status={row.original.status} /> },
   ], [activeWorkflowRules.stageTimelines, filtered, institutions, now, officers, selected])
 
@@ -78,9 +74,8 @@ export default function CasesPage({ role }: { role: HumanRole }) {
     setSavedViews(next); localStorage.setItem('casepilot-case-views', JSON.stringify(next)); setSaveName('')
   }
   const bulkAssign = () => {
-    const officer = role === 'Regional Officer' ? officers.find((item) => item.id === 'off-01') : officers.find((item) => item.id === 'off-05')
+    const officer = officers.find((item) => item.role === 'Regional Officer')
     if (!officer || !['Regional Officer', 'Bureau Officer'].includes(role)) return
-    const actorName = role === 'Regional Officer' ? 'Ritika Anand' : 'Dr. A. K. Sinha'
     const results = allCases.filter((record) => selected.includes(record.id)).map((record) => assignCase(record, { officerId: officer.id, officerName: actorName, role, now }))
     saveCaseBatch(results.map((item) => item.caseRecord), results.map((item) => item.auditEvent)); setSelected([])
   }

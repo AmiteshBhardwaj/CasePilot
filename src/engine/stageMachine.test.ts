@@ -10,7 +10,7 @@ const baseCase: CaseRecord = {
     { id: 's1', label: 'Scrutiny', status: 'In progress', enteredAt: instant.toISOString(), dueAt: instant.toISOString() },
     { id: 's2', label: 'EVC', status: 'Queued', enteredAt: instant.toISOString(), dueAt: instant.toISOString() },
     { id: 's3', label: 'Authority Decision', status: 'Queued', enteredAt: instant.toISOString(), dueAt: instant.toISOString() },
-  ], currentStage: 'Scrutiny', status: 'On track', submittedAt: instant.toISOString(), updatedAt: instant.toISOString(), assignedOfficerId: 'off-01', returnedCount: 0, escalationLevel: 'None', evidenceVerified: false, isDemoData: true,
+  ], currentStage: 'Scrutiny', status: 'On track', submittedAt: instant.toISOString(), updatedAt: instant.toISOString(), assignedOfficerId: 'off-01', returnedCount: 0, escalationLevel: 'None', evidenceVerified: false,
 }
 
 describe('stageMachine', () => {

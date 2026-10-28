@@ -26,13 +26,13 @@ export function recordDecisionWithUndertaking(caseRecord: CaseRecord, input: {
 }, now = new Date()): { caseRecord: CaseRecord; undertaking: Undertaking; auditEvents: AuditEvent[] } {
   if (!input.undertakingTitle.trim()) throw new Error('An undertaking title is required for an approval decision.')
   if (!Number.isFinite(input.undertakingDueAt.getTime()) || input.undertakingDueAt.getTime() <= now.getTime()) {
-    throw new Error('The undertaking due date must be after the current demo date.')
+    throw new Error('The undertaking due date must be after the current date.')
   }
   const decision = recordDecision(caseRecord, { officerName: input.officerName, role: input.role, decision: 'Approved', reason: input.reason }, now)
   const at = now.toISOString()
   const undertaking: Undertaking = {
     id: `undertaking-${caseRecord.id}-${now.getTime()}`, institutionId: caseRecord.institutionId, caseId: caseRecord.id,
-    title: input.undertakingTitle.trim(), dueAt: input.undertakingDueAt.toISOString(), status: 'Pending', isDemoData: true,
+    title: input.undertakingTitle.trim(), dueAt: input.undertakingDueAt.toISOString(), status: 'Pending',
   }
   const undertakingEvent = makeAuditEvent({
     id: `approval-undertaking:${caseRecord.id}:${at}`, at, actorName: input.officerName, actorRole: input.role,

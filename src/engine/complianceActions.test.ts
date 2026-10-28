@@ -3,7 +3,7 @@ import type { Undertaking } from '@/data/schemas'
 import { submitDocumentRenewal, submitUndertakingEvidence, verifyUndertakingEvidence } from './complianceActions'
 
 const now = new Date('2026-10-28T09:00:00+05:30')
-const undertaking: Undertaking = { id: 'und-001', institutionId: 'inst-001', title: 'Fire safety renewal undertaking', dueAt: '2026-11-15T00:00:00.000Z', status: 'Pending', isDemoData: true }
+const undertaking: Undertaking = { id: 'und-001', institutionId: 'inst-001', title: 'Fire safety renewal undertaking', dueAt: '2026-11-15T00:00:00.000Z', status: 'Pending', }
 
 describe('compliance actions', () => {
   it('keeps an undertaking open after submission until a named officer verifies it', () => {

@@ -11,7 +11,7 @@ export function proposeWorkflowRules(active: WorkflowRuleConfig, draft: Workflow
   const config = workflowRuleConfigSchema.parse({ ...draft, version, effectiveFrom: now.toISOString() })
   const proposal: RuleProposal = {
     id: `rule-proposal:${version}:${now.getTime()}`, config, rationale: input.rationale.trim(), proposedBy: input.actor.name,
-    proposedByRole: input.actor.role, proposedAt: now.toISOString(), status: 'Pending approval', isDemoData: true,
+    proposedByRole: input.actor.role, proposedAt: now.toISOString(), status: 'Pending approval',
   }
   const auditEvent = makeAuditEvent({ id: `rule-proposed:${proposal.id}`, at: now.toISOString(), actorName: input.actor.name, actorRole: input.actor.role, action: `Workflow rule ${version} proposed`, entityType: 'Rule', entityId: proposal.id, detail: `${input.actor.name} proposed ${version}: ${proposal.rationale}`, before: `Active ${active.version}`, after: `Pending approval ${version}`, reason: proposal.rationale })
   return { proposal, auditEvent }
