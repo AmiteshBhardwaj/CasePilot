@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" role="img" aria-labelledby="title desc">
+  <title id="title">CasePilot workflow stages</title>
+  <desc id="desc">A conceptual path linking submission, scrutiny, verification, decision and compliance.</desc>
+  <defs>
+    <linearGradient id="path" x1="0" x2="1"><stop stop-color="#E5AE48"/><stop offset=".52" stop-color="#E0866B"/><stop offset="1" stop-color="#DCE5D9"/></linearGradient>
+  </defs>
+  <path d="M50 365 C195 340 225 150 390 205 S565 485 720 366 875 158 1140 234" fill="none" stroke="#F4EFE2" stroke-opacity=".1" stroke-width="54" stroke-linecap="round"/>
+  <path d="M50 365 C195 340 225 150 390 205 S565 485 720 366 875 158 1140 234" fill="none" stroke="url(#path)" stroke-width="3" stroke-dasharray="5 12" stroke-linecap="round"/>
+  <g font-family="Arial,sans-serif" font-size="17" fill="#FFFBF3" text-anchor="middle">
+    <g><circle cx="170" cy="332" r="12" fill="#E5AE48"/><text x="170" y="385">Scrutiny</text></g>
+    <g><circle cx="390" cy="205" r="12" fill="#E0866B"/><text x="390" y="166">EVC</text></g>
+    <g><circle cx="602" cy="417" r="12" fill="#DCE5D9"/><text x="602" y="463">SAC / SHC</text></g>
+    <g><circle cx="812" cy="304" r="12" fill="#E5AE48"/><text x="812" y="262">Decision</text></g>
+    <g><circle cx="1040" cy="224" r="12" fill="#8EAD93"/><text x="1040" y="182">Compliance</text></g>
+  </g>
+</svg>
