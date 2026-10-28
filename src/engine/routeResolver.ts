@@ -14,16 +14,17 @@ const defaults: Record<ApplicationType, { steps: RouteStep[]; category: RouteCat
   'Trust Transfer': { steps: ['Scrutiny', 'EVC', 'SAC/SHC', 'Authority Decision'], category: 'Configurable combo', code: 'RT-TRUST-08', reason: 'A trust transfer requires scrutiny, site verification and committee review.' },
 }
 
-export function resolveRoute(applicationType: ApplicationType, overrides: RouteOverride = {}, now = new Date(), entityId = 'route-resolution'): { route: Route; auditEvent: AuditEvent } {
+export function resolveRoute(applicationType: ApplicationType, overrides: RouteOverride = {}, now = new Date(), entityId = 'route-resolution', version = '2026.1'): { route: Route; auditEvent: AuditEvent } {
   const configured = defaults[applicationType]
   const override = overrides[applicationType]
+  const hasCustomRoute = Boolean(override?.length && (override.length !== configured.steps.length || override.some((step, index) => step !== configured.steps[index])))
   const steps = override?.length ? override : configured.steps
   const route: Route = {
     steps,
-    category: override?.length ? 'Configurable combo' : configured.category,
-    ruleCode: override?.length ? `${configured.code}-CFG` : configured.code,
-    reason: override?.length ? `Configured workflow for ${applicationType}: ${steps.join(' → ')}.` : configured.reason,
-    version: '2026.1',
+    category: hasCustomRoute ? 'Configurable combo' : configured.category,
+    ruleCode: hasCustomRoute ? `${configured.code}-CFG` : configured.code,
+    reason: hasCustomRoute ? `Configured workflow for ${applicationType}: ${steps.join(' → ')}.` : configured.reason,
+    version,
   }
   const auditEvent = makeAuditEvent({
     id: `route:${entityId}:${now.toISOString()}`, at: now.toISOString(), actorName: 'CasePilot workflow engine', actorRole: 'System',

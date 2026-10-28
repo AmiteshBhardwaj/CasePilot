@@ -24,6 +24,7 @@ export default function ApplicationWizardPage({ role }: { role: HumanRole }) {
   const officers = useCasePilotStore((state) => state.officers)
   const committees = useCasePilotStore((state) => state.committees)
   const cases = useCasePilotStore((state) => state.cases)
+  const workflowRules = useCasePilotStore((state) => state.activeWorkflowRules)
   const demoNow = useCasePilotStore((state) => state.demoNow)
   const createCase = useCasePilotStore((state) => state.createCase)
   const [institutionId, setInstitutionId] = useState('inst-001')
@@ -34,7 +35,7 @@ export default function ApplicationWizardPage({ role }: { role: HumanRole }) {
   const [error, setError] = useState('')
   const now = useMemo(() => new Date(demoNow), [demoNow])
   const institution = institutions.find((item) => item.id === institutionId) ?? institutions[0]
-  const preview = resolveRoute(applicationType, {}, now, 'route-preview').route
+  const preview = resolveRoute(applicationType, workflowRules.routeOverrides, now, 'route-preview', workflowRules.version).route
 
   if (role !== 'Institution') return <Card className="p-8"><div className="mx-auto max-w-lg text-center"><ShieldCheck size={32} className="mx-auto text-sage" /><h1 className="mt-3 font-heading text-2xl text-forest">Institution role required</h1><p className="mt-2 text-sm text-sage">Only an Institution role can submit a new application. Switch roles in the top bar to continue.</p></div></Card>
 
@@ -50,7 +51,7 @@ export default function ApplicationWizardPage({ role }: { role: HumanRole }) {
       const committee = committees.find((item) => item.region === institution.region) ?? committees[0]
       if (!officer || !committee) throw new Error('The demo workspace has no regional officer or committee configured.')
       const actor = { name: demoActorName.Institution, role: 'Institution' as const }
-      const application = submitApplication({ caseId: id, institution, applicationType, assignedOfficerId: officer.id, assignedCommitteeId: committee.id, actor, now })
+      const application = submitApplication({ caseId: id, institution, applicationType, assignedOfficerId: officer.id, assignedCommitteeId: committee.id, actor, now, workflowRules })
       const upload = uploadEvidence({ caseId: id, institutionId: institution.id, files: evidenceFiles, actor, now })
       const resultEvents = [...application.auditEvents, ...upload.auditEvents]
       createCase(application.caseRecord, upload.documents, resultEvents)

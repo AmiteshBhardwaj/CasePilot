@@ -15,8 +15,16 @@ describe('complianceEngine', () => {
     const result = runComplianceEngine([document], [undertaking], now)
     expect(result.alerts.map((alert) => alert.type)).toEqual(expect.arrayContaining(['Compliance', 'Evidence']))
     expect(result.alerts.some((alert) => alert.message.includes('overdue'))).toBe(true)
-    expect(result.auditEvents).toHaveLength(result.alerts.length)
+    expect(result.auditEvents).toHaveLength(result.alerts.length + 1)
     expect(result.auditEvents.some((event) => event.entityType === 'Document' && event.entityId === 'doc-001')).toBe(true)
     expect(result.auditEvents.some((event) => event.entityType === 'Undertaking' && event.entityId === 'und-001')).toBe(true)
+  })
+
+  it('uses active reminder windows and notification channels during reevaluation', () => {
+    const dueSoon = { ...document, verification: 'Verified' as const, expiresAt: '2026-11-05T00:00:00Z' }
+    const result = runComplianceEngine([dueSoon], [], now, { complianceAlertDays: [60, 30, 10], channels: ['In-app', 'Email'] })
+    expect(result.alerts[0].title).toBe('Document expires within 10 days')
+    expect(result.alerts[0].channels).toEqual(['In-app', 'Email'])
+    expect(result.auditEvents[0].actorRole).toBe('System')
   })
 })

@@ -17,7 +17,7 @@ export function recordDecision(caseRecord: CaseRecord, input: {
     status: 'Closed' as const, updatedAt: at,
     stages: caseRecord.stages.map((item) => item.id === stage.id ? { ...item, status: 'Completed' as const, completedAt: at } : item),
   }
-  const auditEvent = makeAuditEvent({ id: `decision:${caseRecord.id}:${at}`, at, actorName: input.officerName, actorRole: input.role, action: `Decision ${input.decision}`, entityType: 'Case', entityId: caseRecord.id, detail: `${input.officerName} recorded ${input.decision.toLowerCase()} for ${caseRecord.id}. Reason: ${input.reason.trim()}` })
+  const auditEvent = makeAuditEvent({ id: `decision:${caseRecord.id}:${at}`, at, actorName: input.officerName, actorRole: input.role, action: `Decision ${input.decision}`, entityType: 'Case', entityId: caseRecord.id, detail: `${input.officerName} recorded ${input.decision.toLowerCase()} for ${caseRecord.id}. Reason: ${input.reason.trim()}`, before: `${caseRecord.currentStage}: ${stage.status}`, after: `Closed · ${input.decision}`, reason: input.reason.trim() })
   return { caseRecord: caseUpdated, auditEvent }
 }
 
@@ -32,6 +32,6 @@ export function verifyDocument(document: DocumentRecord, input: {
   const detail = input.outcome === 'Verified'
     ? `${input.officerName} verified ${document.name}.`
     : `${input.officerName} marked ${document.name} as ${input.outcome.toLowerCase()}. Reason: ${input.reason?.trim()}`
-  const auditEvent = makeAuditEvent({ id: `verification:${document.id}:${at}`, at, actorName: input.officerName, actorRole: input.role, action: `Evidence ${input.outcome.toLowerCase()}`, entityType: 'Document', entityId: document.id, detail })
+  const auditEvent = makeAuditEvent({ id: `verification:${document.id}:${at}`, at, actorName: input.officerName, actorRole: input.role, action: `Evidence ${input.outcome.toLowerCase()}`, entityType: 'Document', entityId: document.id, detail, before: document.verification, after: input.outcome, reason: input.outcome === 'Verified' ? undefined : input.reason?.trim() })
   return { document: updated, auditEvent }
 }

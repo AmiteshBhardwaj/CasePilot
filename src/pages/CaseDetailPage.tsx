@@ -7,7 +7,7 @@ import { demoActorName } from '@/data/demoActors'
 import { useCasePilotStore } from '@/store/useCasePilotStore'
 import { completeCurrentStage, resubmitReturnedCase, returnCase, revertCase } from '@/engine/stageMachine'
 import { recordDecision, verifyDocument } from '@/engine/humanActions'
-import { confirmCaseSummary, createObservation, draftCaseSummary, recordCommitteeOutcome, scheduleEvc } from '@/engine/workflowActions'
+import { confirmCaseSummary, createObservation, draftCaseSummary, recordCommitteeOutcome, recordEvcOutcome, scheduleEvc } from '@/engine/workflowActions'
 import { evaluateCaseSla } from '@/engine/slaEngine'
 import { Button, Card, Dialog, EmptyState, Input, Select, StageTracker, StatusChip, Tabs, Timeline, Tooltip } from '@/components/ui'
 
@@ -24,6 +24,7 @@ export default function CaseDetailPage({ role }: { role: HumanRole }) {
   const alerts = useCasePilotStore((state) => state.alerts.filter((item) => item.caseId === caseId))
   const events = useCasePilotStore((state) => state.auditEvents.filter((item) => item.entityId === caseId || item.entityId.startsWith(`${caseId}-`)).sort((a, b) => b.at.localeCompare(a.at)))
   const demoNow = useCasePilotStore((state) => state.demoNow)
+  const activeWorkflowRules = useCasePilotStore((state) => state.activeWorkflowRules)
   const saveCaseAction = useCasePilotStore((state) => state.saveCaseAction)
   const saveDocumentAction = useCasePilotStore((state) => state.saveDocumentAction)
   const saveObservation = useCasePilotStore((state) => state.saveObservation)
@@ -34,15 +35,17 @@ export default function CaseDetailPage({ role }: { role: HumanRole }) {
   const [committeeNotes, setCommitteeNotes] = useState('')
   const [decisionReason, setDecisionReason] = useState('')
   const [scheduledAt, setScheduledAt] = useState('')
+  const [evcNotes, setEvcNotes] = useState('')
   const [observationText, setObservationText] = useState('')
   const [summaryDraft, setSummaryDraft] = useState('')
   const now = new Date(demoNow)
 
-  if (!record) return <EmptyState title="Case not found" description="This demo record may have been reset." action={<Link to="/app/cases" className="button button-secondary">Back to cases</Link>} />
+  const recordIsVisible = Boolean(record && (role !== 'Institution' || record.institutionId === 'inst-001') && (role !== 'Regional Officer' || record.region === 'Northern') && (role !== 'Committee' || record.assignedCommitteeId === 'com-01'))
+  if (!record || !recordIsVisible) return <EmptyState title="Case not found" description="This record is unavailable in the current demo role or may have been reset." action={<Link to="/app/cases" className="button button-secondary">Back to cases</Link>} />
 
   const actor = { name: demoActorName[role], role }
   const current = record.stages.find((stage) => stage.label === record.currentStage)
-  const sla = evaluateCaseSla(record, now)
+  const sla = evaluateCaseSla(record, now, 5, activeWorkflowRules.stageTimelines)
   const officer = officers.find((item) => item.id === record.assignedOfficerId)
   const canReviewStage = (record.currentStage === 'Scrutiny' || record.currentStage === 'EVC') && ['Regional Officer', 'Bureau Officer'].includes(role)
     || record.currentStage === 'SAC/SHC' && role === 'Committee'
@@ -76,7 +79,8 @@ export default function CaseDetailPage({ role }: { role: HumanRole }) {
       {tab === 'Overview' && <div className="grid gap-5 p-5 xl:grid-cols-[1fr_.8fr]"><section><div className="section-label">01 / CURRENT DECISION POINT</div><h2 className="mt-1 font-heading text-2xl text-forest">{record.currentStage}</h2><p className="mt-2 max-w-xl text-sm leading-6 text-sage">The workflow can coordinate assignments, due dates and notifications. This stage advances only after an authorized human action.</p>{message && <div role="status" className="mt-4 rounded-xl bg-pale-sage px-3 py-2 text-xs leading-5 text-forest">{message}</div>}
           <div className="mt-5 flex flex-wrap gap-2">
             {role === 'Institution' && current?.status === 'Returned' && <Button onClick={() => runAction(() => resubmitReturnedCase(record, actor, now))}><Check size={14} /> Submit response</Button>}
-            {canReviewStage && record.currentStage !== 'SAC/SHC' && <Button onClick={() => runAction(() => completeCurrentStage(record, actor, now))}><Forward size={14} /> Forward to next stage</Button>}
+            {canReviewStage && record.currentStage === 'Scrutiny' && <Button onClick={() => runAction(() => completeCurrentStage(record, actor, now))}><Forward size={14} /> Forward to next stage</Button>}
+            {canReviewStage && record.currentStage === 'EVC' && <form className="w-full max-w-xl space-y-2" onSubmit={(event) => { event.preventDefault(); runAction(() => recordEvcOutcome(record, { actor, notes: evcNotes, now })) }}><label className="block text-xs font-semibold text-sage">EVC inspection report summary<textarea aria-label="EVC inspection report summary" className="control mt-1.5 min-h-20 w-full" value={evcNotes} onChange={(event) => setEvcNotes(event.target.value)} placeholder="Summarize the inspection record for the next human review stage." /></label><Button type="submit"><Forward size={14} /> Record EVC report and forward</Button></form>}
             {record.currentStage === 'SAC/SHC' && role === 'Committee' && <form className="w-full max-w-xl space-y-2" onSubmit={(event) => { event.preventDefault(); runAction(() => recordCommitteeOutcome(record, { actor, outcome, notes: committeeNotes, now })) }}><Select aria-label="Committee recommendation" value={outcome} onChange={(event) => setOutcome(event.target.value as typeof outcome)}><option>Recommended</option><option>Not recommended</option><option>Deferred</option></Select><textarea aria-label="Committee notes" className="control min-h-24 w-full" value={committeeNotes} onChange={(event) => setCommitteeNotes(event.target.value)} placeholder="Record the committee’s review notes and recommendation rationale." /><Button type="submit">Record committee outcome</Button></form>}
             {record.currentStage === 'EVC' && ['Regional Officer', 'Bureau Officer'].includes(role) && <form className="flex flex-wrap items-end gap-2" onSubmit={(event) => { event.preventDefault(); try { const result = scheduleEvc(record, { actor, scheduledAt: new Date(scheduledAt), now }); persistResult(result); setMessage('EVC schedule recorded in the audit trail.') } catch (error) { setMessage(error instanceof Error ? error.message : 'EVC could not be scheduled.') } }}><label className="text-xs font-semibold text-sage">Schedule EVC<Input aria-label="EVC date and time" type="datetime-local" className="mt-1 block" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} required /></label><Button type="submit"><CalendarClock size={14} /> Save schedule</Button></form>}
             {canDecide && <form className="w-full max-w-xl space-y-2" onSubmit={(event) => event.preventDefault()}><label className="block text-xs font-semibold text-sage">Statutory decision reason<textarea aria-label="Decision reason" className="control mt-1.5 min-h-20 w-full" value={decisionReason} onChange={(event) => setDecisionReason(event.target.value)} placeholder="Record the Authority’s reasons for this decision." /></label><div className="flex gap-2"><Button onClick={() => runAction(() => recordDecision(record, { officerName: actor.name, role, decision: 'Approved', reason: decisionReason }, now))}><Check size={14} /> Record approval</Button><Button variant="secondary" onClick={() => runAction(() => recordDecision(record, { officerName: actor.name, role, decision: 'Rejected', reason: decisionReason }, now))}>Record rejection</Button></div></form>}

@@ -29,7 +29,7 @@ export const caseSchema = z.object({
   id: z.string(), institutionId: z.string(), applicationType: applicationTypeSchema, title: z.string(), region: regionSchema,
   route: routeSchema, stages: z.array(stageSchema), currentStage: routeStepSchema, status: caseStatusSchema,
   submittedAt: z.string().datetime(), updatedAt: z.string().datetime(), assignedOfficerId: z.string(), returnedCount: z.number().int().nonnegative(),
-  assignedCommitteeId: z.string().optional(), evcScheduledAt: z.string().datetime().optional(),
+  assignedCommitteeId: z.string().optional(), evcScheduledAt: z.string().datetime().optional(), evcReportNotes: z.string().optional(), evcCompletedAt: z.string().datetime().optional(), evcCompletedBy: z.string().optional(),
   committeeOutcome: z.enum(['Recommended', 'Not recommended', 'Deferred']).optional(), committeeNotes: z.string().optional(),
   caseSummary: z.string().optional(), summarySavedBy: z.string().optional(), summarySavedAt: z.string().datetime().optional(),
   escalationLevel: z.enum(['None', 'Regional Officer', 'Bureau Officer', 'Authority']).default('None'), evidenceVerified: z.boolean(),
@@ -40,12 +40,19 @@ export const officerSchema = z.object({ id: z.string(), name: z.string(), role: 
 export const committeeSchema = z.object({ id: z.string(), name: z.string(), kind: z.enum(['SAC', 'SHC']), region: regionSchema, chair: z.string(), memberCount: z.number().int().positive(), isDemoData: z.literal(true) })
 export const documentSchema = z.object({ id: z.string(), institutionId: z.string(), caseId: z.string().optional(), name: z.string(), kind: documentKindSchema, uploadedAt: z.string().datetime(), expiresAt: z.string().datetime().optional(), verification: verificationStatusSchema, verifiedBy: z.string().optional(), verifiedAt: z.string().datetime().optional(), isDemoData: z.literal(true) })
 export const observationSchema = z.object({ id: z.string(), caseId: z.string(), text: z.string(), raisedBy: z.string(), raisedAt: z.string().datetime(), resolvedAt: z.string().datetime().optional(), status: z.enum(['Open', 'Responded', 'Resolved']), isDemoData: z.literal(true) })
-export const undertakingSchema = z.object({ id: z.string(), institutionId: z.string(), caseId: z.string().optional(), title: z.string(), dueAt: z.string().datetime(), submittedAt: z.string().datetime().optional(), status: z.enum(['Pending', 'Submitted', 'Overdue', 'Accepted']), isDemoData: z.literal(true) })
+export const undertakingSchema = z.object({ id: z.string(), institutionId: z.string(), caseId: z.string().optional(), title: z.string(), dueAt: z.string().datetime(), submittedAt: z.string().datetime().optional(), evidenceName: z.string().optional(), verification: verificationStatusSchema.optional(), verifiedBy: z.string().optional(), verifiedAt: z.string().datetime().optional(), status: z.enum(['Pending', 'Submitted', 'Overdue', 'Needs clarification', 'Accepted']), isDemoData: z.literal(true) })
 export const documentValiditySchema = z.object({ documentId: z.string(), institutionId: z.string(), documentName: z.string(), expiresAt: z.string().datetime(), daysRemaining: z.number().int(), state: z.enum(['Valid', 'Due in 30 days', 'Due in 15 days', 'Due in 7 days', 'Expired']), verification: verificationStatusSchema })
 export const alertSchema = z.object({ id: z.string(), type: z.enum(['SLA', 'Compliance', 'Escalation', 'Evidence']), severity: z.enum(['Info', 'Warning', 'Critical']), title: z.string(), message: z.string(), caseId: z.string().optional(), institutionId: z.string().optional(), ownerId: z.string().optional(), dueAt: z.string().datetime().optional(), missingEvidence: z.array(z.string()).optional(), channels: z.array(alertChannelSchema).default(['In-app']), createdAt: z.string().datetime(), read: z.boolean(), acknowledgedBy: z.string().optional(), acknowledgedAt: z.string().datetime().optional(), snoozedUntil: z.string().datetime().optional(), isDemoData: z.literal(true) })
 export const escalationRuleSchema = z.object({ stage: routeStepSchema, regionalAfterDays: z.number().positive(), bureauAfterDays: z.number().positive(), authorityAfterDays: z.number().positive() })
-export const auditEventSchema = z.object({ id: z.string(), at: z.string().datetime(), actorName: z.string(), actorRole: roleSchema, action: z.string(), entityType: z.enum(['Case', 'Document', 'Undertaking', 'Alert', 'Rule']), entityId: z.string(), detail: z.string(), isDemoData: z.literal(true) })
+export const auditEventSchema = z.object({ id: z.string(), at: z.string().datetime(), actorName: z.string(), actorRole: roleSchema, action: z.string(), entityType: z.enum(['Case', 'Document', 'Undertaking', 'Alert', 'Rule']), entityId: z.string(), detail: z.string(), before: z.string().optional(), after: z.string().optional(), reason: z.string().optional(), isDemoData: z.literal(true) })
 export const ruleVersionSchema = z.object({ code: z.string(), name: z.string(), version: z.string(), effectiveFrom: z.string().datetime(), updatedBy: z.string(), rationale: z.string(), active: z.boolean(), isDemoData: z.literal(true) })
+export const workflowRuleConfigSchema = z.object({
+  version: z.string(), effectiveFrom: z.string().datetime(),
+  routeOverrides: z.record(applicationTypeSchema, z.array(routeStepSchema).min(1)),
+  stageTimelines: z.object({ Scrutiny: z.number().int().positive(), EVC: z.number().int().positive(), 'SAC/SHC': z.number().int().positive(), 'Authority Decision': z.number().int().positive() }),
+  escalationRules: z.array(escalationRuleSchema), complianceAlertDays: z.array(z.number().int().positive()).min(1), channels: z.array(alertChannelSchema).min(1),
+})
+export const ruleProposalSchema = z.object({ id: z.string(), config: workflowRuleConfigSchema, rationale: z.string().min(1), proposedBy: z.string(), proposedByRole: humanRoleSchema, proposedAt: z.string().datetime(), status: z.enum(['Pending approval', 'Approved', 'Rejected']), approvedBy: z.string().optional(), approvedByRole: humanRoleSchema.optional(), approvedAt: z.string().datetime().optional(), isDemoData: z.literal(true) })
 
 export type Region = z.infer<typeof regionSchema>
 export type Role = z.infer<typeof roleSchema>
@@ -71,8 +78,11 @@ export type Alert = z.infer<typeof alertSchema>
 export type EscalationRule = z.infer<typeof escalationRuleSchema>
 export type AuditEvent = z.infer<typeof auditEventSchema>
 export type RuleVersion = z.infer<typeof ruleVersionSchema>
+export type WorkflowRuleConfig = z.infer<typeof workflowRuleConfigSchema>
+export type RuleProposal = z.infer<typeof ruleProposalSchema>
 
 export type DemoDataset = {
   institutions: Institution[]; cases: CaseRecord[]; officers: Officer[]; committees: Committee[]; documents: DocumentRecord[];
   observations: Observation[]; undertakings: Undertaking[]; alerts: Alert[]; auditEvents: AuditEvent[]; ruleVersions: RuleVersion[];
+  activeWorkflowRules: WorkflowRuleConfig; ruleProposals: RuleProposal[];
 }

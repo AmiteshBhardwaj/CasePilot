@@ -17,9 +17,9 @@ function readSavedViews(): SavedView[] {
   } catch { return [] }
 }
 
-function dueLabel(record: CaseRecord, now: Date): string {
+function dueLabel(record: CaseRecord, now: Date, timelines: ReturnType<typeof useCasePilotStore.getState>['activeWorkflowRules']['stageTimelines']): string {
   if (record.status === 'Closed') return 'Closed'
-  const { daysRemaining } = evaluateCaseSla(record, now)
+  const { daysRemaining } = evaluateCaseSla(record, now, 5, timelines)
   return daysRemaining < 0 ? `${Math.abs(daysRemaining)}d overdue` : daysRemaining === 0 ? 'Due today' : `${daysRemaining}d left`
 }
 
@@ -29,6 +29,7 @@ export default function CasesPage({ role }: { role: HumanRole }) {
   const institutions = useCasePilotStore((state) => state.institutions)
   const officers = useCasePilotStore((state) => state.officers)
   const demoNow = useCasePilotStore((state) => state.demoNow)
+  const activeWorkflowRules = useCasePilotStore((state) => state.activeWorkflowRules)
   const saveCaseBatch = useCasePilotStore((state) => state.saveCaseBatch)
   const [selected, setSelected] = useState<string[]>([])
   const [saveName, setSaveName] = useState('')
@@ -67,9 +68,9 @@ export default function CasesPage({ role }: { role: HumanRole }) {
     { id: 'region', header: 'Region', cell: ({ row }: { row: { original: CaseRecord } }) => <span className="text-xs">{row.original.region}</span> },
     { id: 'route', header: 'Route', cell: ({ row }: { row: { original: CaseRecord } }) => <span className="text-xs">{row.original.route.category}</span> },
     { id: 'stage', header: 'Stage / owner', cell: ({ row }: { row: { original: CaseRecord } }) => <div><div>{row.original.currentStage}</div><div className="mt-1 text-[10px] text-sage">{officers.find((item) => item.id === row.original.assignedOfficerId)?.name ?? 'Unassigned'}</div></div> },
-    { id: 'sla', header: 'SLA countdown', cell: ({ row }: { row: { original: CaseRecord } }) => <span className={`mono text-[10px] font-semibold ${row.original.status === 'Overdue' ? 'text-rust' : row.original.status === 'Due soon' ? 'text-[#8A641C]' : 'text-sage'}`}>{dueLabel(row.original, now)}</span> },
+    { id: 'sla', header: 'SLA countdown', cell: ({ row }: { row: { original: CaseRecord } }) => <span className={`mono text-[10px] font-semibold ${row.original.status === 'Overdue' ? 'text-rust' : row.original.status === 'Due soon' ? 'text-[#8A641C]' : 'text-sage'}`}>{dueLabel(row.original, now, activeWorkflowRules.stageTimelines)}</span> },
     { id: 'status', header: 'Status', cell: ({ row }: { row: { original: CaseRecord } }) => <StatusChip status={row.original.status} /> },
-  ], [filtered, institutions, now, officers, selected])
+  ], [activeWorkflowRules.stageTimelines, filtered, institutions, now, officers, selected])
 
   const saveCurrentView = () => {
     if (!saveName.trim()) return

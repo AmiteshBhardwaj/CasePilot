@@ -1,5 +1,5 @@
 import { differenceInCalendarDays } from 'date-fns'
-import type { Alert, AuditEvent, CaseRecord, EscalationRule, RouteStep } from '@/data/schemas'
+import type { Alert, AuditEvent, CaseRecord, EscalationRule, RouteStep, WorkflowRuleConfig } from '@/data/schemas'
 import { ENGINE_ACTOR, makeAuditEvent } from './audit'
 
 export const defaultEscalationRules: EscalationRule[] = [
@@ -20,7 +20,7 @@ export function escalationLevelForAge(ageDays: number, rule: EscalationRule): Ca
   return 'None'
 }
 
-export function runEscalationEngine(cases: CaseRecord[], now = new Date(), rules: EscalationRule[] = defaultEscalationRules): EscalationRun {
+export function runEscalationEngine(cases: CaseRecord[], now = new Date(), rules: EscalationRule[] = defaultEscalationRules, channels: WorkflowRuleConfig['channels'] = ['In-app']): EscalationRun {
   const alerts: Alert[] = []
   const auditEvents: AuditEvent[] = []
   const updated = cases.map((caseRecord) => {
@@ -34,7 +34,7 @@ export function runEscalationEngine(cases: CaseRecord[], now = new Date(), rules
     const nextCase: CaseRecord = { ...caseRecord, escalationLevel: nextLevel, status: 'Escalated', updatedAt: now.toISOString() }
     const message = `${caseRecord.id} aged ${ageDays} days in ${caseRecord.currentStage}; escalation moved to ${nextLevel}.`
     auditEvents.push(makeAuditEvent({ id: `escalation-audit:${caseRecord.id}:${nextLevel}`, at: now.toISOString(), ...ENGINE_ACTOR, action: `Escalated to ${nextLevel}`, entityType: 'Case', entityId: caseRecord.id, detail: message }))
-    alerts.push({ id: `escalation:${caseRecord.id}:${nextLevel}`, type: 'Escalation', severity: nextLevel === 'Authority' ? 'Critical' : 'Warning', title: `Escalated to ${nextLevel}`, message, caseId: caseRecord.id, createdAt: now.toISOString(), read: false, channels: ['In-app'], isDemoData: true })
+    alerts.push({ id: `escalation:${caseRecord.id}:${nextLevel}`, type: 'Escalation', severity: nextLevel === 'Authority' ? 'Critical' : 'Warning', title: `Escalated to ${nextLevel}`, message, caseId: caseRecord.id, createdAt: now.toISOString(), read: false, channels, isDemoData: true })
     return nextCase
   })
   return { cases: updated, alerts, auditEvents }

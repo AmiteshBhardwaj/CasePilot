@@ -25,4 +25,11 @@ describe('slaEngine', () => {
     expect(result.alerts[0].type).toBe('SLA')
     expect(result.auditEvents[0].actorRole).toBe('System')
   })
+
+  it('uses an approved timeline override during the next evaluation', () => {
+    const result = runSlaEngine([caseRecord], now, { Scrutiny: 6, EVC: 18, 'SAC/SHC': 15, 'Authority Decision': 10 })
+    expect(result.cases[0].status).toBe('Overdue')
+    expect(result.cases[0].stages[0].dueAt).toBe('2026-10-16T00:00:00.000Z')
+    expect(result.auditEvents.length).toBeGreaterThan(0)
+  })
 })

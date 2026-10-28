@@ -3,6 +3,7 @@ import type { Alert, AuditEvent, CaseRecord, Committee, DemoDataset, DocumentRec
 import { resolveRoute } from '@/engine/routeResolver'
 import { stageTimelines } from '@/engine/slaEngine'
 import { makeAuditEvent } from '@/engine/audit'
+import { createDefaultWorkflowRules } from '@/engine/ruleConfig'
 
 export const DEMO_START = new Date('2026-10-28T09:00:00+05:30')
 const regions: Region[] = ['Northern', 'Southern', 'Eastern', 'Western', 'Central', 'South-Western', 'South-Central', 'North-Eastern']
@@ -208,8 +209,10 @@ export function createDemoDataset(): DemoDataset {
     { code: 'RT-2026.1', name: 'Application routing matrix', version: '2026.1', effectiveFrom: new Date('2026-04-01T00:00:00Z').toISOString(), updatedBy: 'Approvals Bureau', rationale: 'Routes applications to the required human scrutiny and verification stages.', active: true, isDemoData: true as const },
     { code: 'SLA-2026.1', name: 'Stage service timelines', version: '2026.1', effectiveFrom: new Date('2026-04-01T00:00:00Z').toISOString(), updatedBy: 'Approvals Bureau', rationale: 'Defines internal workflow timelines for monitoring and alerting.', active: true, isDemoData: true as const },
   ]
+  const activeWorkflowRules = createDefaultWorkflowRules()
   return {
     institutions, cases, officers, committees, documents, observations, undertakings, ruleVersions,
+    activeWorkflowRules, ruleProposals: [],
     auditEvents: createHistory(cases, documents, routeAudits), alerts: createAlerts(cases, documents, undertakings),
   }
 }

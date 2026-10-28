@@ -16,8 +16,8 @@ function requireReason(reason: string): void {
   if (!reason.trim()) throw new Error('A reason is required for return or revert actions.')
 }
 
-function event(caseRecord: CaseRecord, actor: HumanActor, action: string, detail: string, now: Date): AuditEvent {
-  return makeAuditEvent({ id: `stage:${caseRecord.id}:${action}:${now.toISOString()}`, at: now.toISOString(), actorName: actor.name, actorRole: actor.role, action, entityType: 'Case', entityId: caseRecord.id, detail })
+function event(caseRecord: CaseRecord, actor: HumanActor, action: string, detail: string, now: Date, fields: { before?: string; after?: string; reason?: string } = {}): AuditEvent {
+  return makeAuditEvent({ id: `stage:${caseRecord.id}:${action}:${now.toISOString()}`, at: now.toISOString(), actorName: actor.name, actorRole: actor.role, action, entityType: 'Case', entityId: caseRecord.id, detail, ...fields })
 }
 
 function updateStage(stages: Stage[], id: string, update: Partial<Stage>): Stage[] {
@@ -43,7 +43,7 @@ export function completeCurrentStage(caseRecord: CaseRecord, actor: HumanActor, 
     ...caseRecord, stages, currentStage: nextLabel ?? caseRecord.currentStage,
     status: closed ? 'Closed' : caseRecord.status, updatedAt: now.toISOString(),
   }
-  return { caseRecord: nextCase, auditEvent: event(nextCase, actor, 'Stage completed', `${actor.name} completed ${caseRecord.currentStage}${nextLabel ? `; workflow advanced to ${nextLabel}` : '; case workflow completed'}.`, now) }
+  return { caseRecord: nextCase, auditEvent: event(nextCase, actor, 'Stage completed', `${actor.name} completed ${caseRecord.currentStage}${nextLabel ? `; workflow advanced to ${nextLabel}` : '; case workflow completed'}.`, now, { before: `${caseRecord.currentStage}: ${current.status}`, after: `${nextLabel ?? 'Closed'}: ${closed ? 'Completed' : 'In progress'}` }) }
 }
 
 export function returnCase(caseRecord: CaseRecord, actor: HumanActor, reason: string, now = new Date()): StageTransition {
@@ -53,7 +53,7 @@ export function returnCase(caseRecord: CaseRecord, actor: HumanActor, reason: st
   if (!current || ['Completed', 'Rejected'].includes(current.status)) throw new Error('This case cannot be returned from its current state.')
   const stages = updateStage(caseRecord.stages, current.id, { status: 'Returned' })
   const nextCase = { ...caseRecord, stages, returnedCount: caseRecord.returnedCount + 1, updatedAt: now.toISOString() }
-  return { caseRecord: nextCase, auditEvent: event(nextCase, actor, 'Case returned', `${actor.name} returned ${caseRecord.id} to the institution. Reason: ${reason.trim()}`, now) }
+  return { caseRecord: nextCase, auditEvent: event(nextCase, actor, 'Case returned', `${actor.name} returned ${caseRecord.id} to the institution. Reason: ${reason.trim()}`, now, { before: `${caseRecord.currentStage}: ${current.status}`, after: `${caseRecord.currentStage}: Returned`, reason: reason.trim() }) }
 }
 
 export function revertCase(caseRecord: CaseRecord, actor: HumanActor, target: RouteStep, reason: string, now = new Date()): StageTransition {
@@ -71,7 +71,7 @@ export function revertCase(caseRecord: CaseRecord, actor: HumanActor, target: Ro
     return stage
   })
   const nextCase = { ...caseRecord, currentStage: target, stages, status: 'On track' as const, updatedAt: now.toISOString() }
-  return { caseRecord: nextCase, auditEvent: event(nextCase, actor, 'Stage reverted', `${actor.name} reverted workflow to ${target}. Reason: ${reason.trim()}`, now) }
+  return { caseRecord: nextCase, auditEvent: event(nextCase, actor, 'Stage reverted', `${actor.name} reverted workflow to ${target}. Reason: ${reason.trim()}`, now, { before: caseRecord.currentStage, after: target, reason: reason.trim() }) }
 }
 
 export function resubmitReturnedCase(caseRecord: CaseRecord, actor: HumanActor, now = new Date()): StageTransition {
@@ -80,5 +80,5 @@ export function resubmitReturnedCase(caseRecord: CaseRecord, actor: HumanActor, 
   if (!current || current.status !== 'Returned') throw new Error('This case is not awaiting an institution response.')
   const stages = updateStage(caseRecord.stages, current.id, { status: 'In progress', enteredAt: now.toISOString() })
   const nextCase = { ...caseRecord, stages, updatedAt: now.toISOString() }
-  return { caseRecord: nextCase, auditEvent: event(nextCase, actor, 'Institution response received', `${actor.name} resubmitted ${caseRecord.id} for human review.`, now) }
+  return { caseRecord: nextCase, auditEvent: event(nextCase, actor, 'Institution response received', `${actor.name} resubmitted ${caseRecord.id} for human review.`, now, { before: 'Returned', after: 'In progress' }) }
 }

@@ -24,6 +24,11 @@ export default function AlertsPage({ role }: { role: HumanRole }) {
   const [readState, setReadState] = useState('Open and acknowledged')
   const now = useMemo(() => new Date(demoNow), [demoNow])
   const visible = alerts.filter((alert) => {
+    const record = cases.find((item) => item.id === alert.caseId)
+    const alertInstitution = institutions.find((item) => item.id === (alert.institutionId ?? record?.institutionId))
+    if (role === 'Institution' && alert.institutionId !== 'inst-001' && record?.institutionId !== 'inst-001') return false
+    if (role === 'Regional Officer' && (record?.region ?? alertInstitution?.region) && (record?.region ?? alertInstitution?.region) !== 'Northern') return false
+    if (role === 'Committee' && (!record || record.assignedCommitteeId !== 'com-01')) return false
     const channels = alert.channels ?? ['In-app']
     const activeSnooze = alert.snoozedUntil && new Date(alert.snoozedUntil) > now
     return !activeSnooze && (type === 'All alert types' || alert.type === type)
