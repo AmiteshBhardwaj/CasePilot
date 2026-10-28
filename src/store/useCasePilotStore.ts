@@ -1,7 +1,8 @@
 import { addDays } from 'date-fns'
 import { create } from 'zustand'
-import { createJSONStorage, persist } from 'zustand/middleware'
-import type { Alert, AuditEvent, CaseRecord, DemoDataset, DocumentRecord, HumanRole, Observation, Undertaking, WorkflowRuleConfig } from '@/data/schemas'
+import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware'
+import { z } from 'zod'
+import { alertSchema, auditEventSchema, caseSchema, committeeSchema, demoDatasetSchema, documentSchema, humanRoleSchema, institutionSchema, observationSchema, ruleProposalSchema, ruleVersionSchema, undertakingSchema, workflowRuleConfigSchema, officerSchema, type Alert, type AuditEvent, type CaseRecord, type DemoDataset, type DocumentRecord, type HumanRole, type Observation, type Undertaking, type WorkflowRuleConfig } from '@/data/schemas'
 import { createDemoDataset, DEMO_START } from '@/data/seed'
 import { runSlaEngine } from '@/engine/slaEngine'
 import { runEscalationEngine, defaultEscalationRules } from '@/engine/escalationEngine'
@@ -29,6 +30,7 @@ type StoreState = DemoDataset & {
   saveCaseBatch: (cases: CaseRecord[], auditEvents: AuditEvent[]) => void
   createDocumentAction: (document: DocumentRecord, auditEvent: AuditEvent) => void
   saveUndertakingAction: (undertaking: Undertaking, auditEvent: AuditEvent) => void
+  saveDecisionAction: (caseRecord: CaseRecord, undertaking: Undertaking, auditEvents: AuditEvent[]) => void
   proposeRuleVersion: (draft: WorkflowRuleConfig, rationale: string, actor: { name: string; role: HumanRole }) => void
   approveRuleVersion: (proposalId: string, actor: { name: string; role: HumanRole }) => void
 }
@@ -39,7 +41,59 @@ function appendUnique<T extends { id: string }>(current: T[], incoming: T[]): T[
 }
 
 function initialState(): Pick<StoreState, keyof DemoDataset | 'role' | 'demoNow' | 'sidebarCollapsed'> {
-  return { ...createDemoDataset(), role: null, demoNow: DEMO_START.toISOString(), sidebarCollapsed: false }
+  return { ...demoDatasetSchema.parse(createDemoDataset()), role: null, demoNow: DEMO_START.toISOString(), sidebarCollapsed: false }
+}
+
+const persistedStateSchema = z.object({
+  institutions: z.array(institutionSchema).optional(), cases: z.array(caseSchema).optional(), officers: z.array(officerSchema).optional(),
+  committees: z.array(committeeSchema).optional(), documents: z.array(documentSchema).optional(), observations: z.array(observationSchema).optional(),
+  undertakings: z.array(undertakingSchema).optional(), alerts: z.array(alertSchema).optional(), auditEvents: z.array(auditEventSchema).optional(),
+  ruleVersions: z.array(ruleVersionSchema).optional(), activeWorkflowRules: workflowRuleConfigSchema.optional(), ruleProposals: z.array(ruleProposalSchema).optional(),
+  role: humanRoleSchema.nullable().optional(), demoNow: z.string().datetime().optional(), sidebarCollapsed: z.boolean().optional(),
+}).passthrough()
+
+function restorePersistedState(value: unknown): Pick<StoreState, keyof DemoDataset | 'role' | 'demoNow' | 'sidebarCollapsed'> {
+  const defaults = initialState()
+  const parsed = persistedStateSchema.safeParse(value)
+  if (!parsed.success) return defaults
+  const saved = parsed.data
+  return {
+    institutions: saved.institutions ?? defaults.institutions,
+    cases: saved.cases ?? defaults.cases,
+    officers: saved.officers ?? defaults.officers,
+    committees: saved.committees ?? defaults.committees,
+    documents: saved.documents ?? defaults.documents,
+    observations: saved.observations ?? defaults.observations,
+    undertakings: saved.undertakings ?? defaults.undertakings,
+    alerts: saved.alerts ?? defaults.alerts,
+    auditEvents: saved.auditEvents ?? defaults.auditEvents,
+    ruleVersions: saved.ruleVersions ?? defaults.ruleVersions,
+    activeWorkflowRules: saved.activeWorkflowRules ?? defaults.activeWorkflowRules,
+    ruleProposals: saved.ruleProposals ?? defaults.ruleProposals,
+    role: saved.role === undefined ? defaults.role : saved.role,
+    demoNow: saved.demoNow ?? defaults.demoNow,
+    sidebarCollapsed: saved.sidebarCollapsed ?? defaults.sidebarCollapsed,
+  }
+}
+
+const guardedStorage: StateStorage = {
+  getItem: (name) => {
+    try {
+      const value = localStorage.getItem(name)
+      if (value === null) return null
+      JSON.parse(value)
+      return value
+    } catch {
+      try { localStorage.removeItem(name) } catch { /* storage can be disabled by the browser */ }
+      return null
+    }
+  },
+  setItem: (name, value) => {
+    try { localStorage.setItem(name, value) } catch { /* in-memory demo state remains usable when storage is full */ }
+  },
+  removeItem: (name) => {
+    try { localStorage.removeItem(name) } catch { /* storage can be disabled by the browser */ }
+  },
 }
 
 export const useCasePilotStore = create<StoreState>()(persist((set, get) => ({
@@ -92,6 +146,11 @@ export const useCasePilotStore = create<StoreState>()(persist((set, get) => ({
   saveCaseBatch: (cases, auditEvents) => set((state) => ({ cases: state.cases.map((record) => cases.find((item) => item.id === record.id) ?? record), auditEvents: [...auditEvents, ...state.auditEvents] })),
   createDocumentAction: (document, auditEvent) => set((state) => ({ documents: [document, ...state.documents], auditEvents: [auditEvent, ...state.auditEvents] })),
   saveUndertakingAction: (undertaking, auditEvent) => set((state) => ({ undertakings: state.undertakings.map((item) => item.id === undertaking.id ? undertaking : item), auditEvents: [auditEvent, ...state.auditEvents] })),
+  saveDecisionAction: (caseRecord, undertaking, auditEvents) => set((state) => ({
+    cases: state.cases.map((item) => item.id === caseRecord.id ? caseRecord : item),
+    undertakings: [undertaking, ...state.undertakings],
+    auditEvents: [...auditEvents, ...state.auditEvents],
+  })),
   proposeRuleVersion: (draft, rationale, actor) => {
     const state = get()
     if (state.ruleProposals.some((item) => item.status === 'Pending approval')) throw new Error('Approve or reject the existing draft before proposing another version.')
@@ -115,6 +174,9 @@ export const useCasePilotStore = create<StoreState>()(persist((set, get) => ({
   },
 }), {
   name: 'casepilot-demo-v1',
-  storage: createJSONStorage(() => localStorage),
+  version: 2,
+  storage: createJSONStorage(() => guardedStorage),
+  migrate: (persistedState) => restorePersistedState(persistedState),
+  merge: (persistedState, currentState) => ({ ...currentState, ...restorePersistedState(persistedState) }),
   partialize: (state) => ({ ...state, now: undefined } as unknown as StoreState),
 }))

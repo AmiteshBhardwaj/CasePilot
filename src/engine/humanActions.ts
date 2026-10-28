@@ -1,4 +1,4 @@
-import type { AuditEvent, CaseRecord, DocumentRecord, HumanRole } from '@/data/schemas'
+import type { AuditEvent, CaseRecord, DocumentRecord, HumanRole, Undertaking } from '@/data/schemas'
 import { makeAuditEvent } from './audit'
 
 const verificationRoles: HumanRole[] = ['Regional Officer', 'Bureau Officer', 'Authority']
@@ -19,6 +19,28 @@ export function recordDecision(caseRecord: CaseRecord, input: {
   }
   const auditEvent = makeAuditEvent({ id: `decision:${caseRecord.id}:${at}`, at, actorName: input.officerName, actorRole: input.role, action: `Decision ${input.decision}`, entityType: 'Case', entityId: caseRecord.id, detail: `${input.officerName} recorded ${input.decision.toLowerCase()} for ${caseRecord.id}. Reason: ${input.reason.trim()}`, before: `${caseRecord.currentStage}: ${stage.status}`, after: `Closed · ${input.decision}`, reason: input.reason.trim() })
   return { caseRecord: caseUpdated, auditEvent }
+}
+
+export function recordDecisionWithUndertaking(caseRecord: CaseRecord, input: {
+  officerName: string; role: HumanRole; reason: string; undertakingTitle: string; undertakingDueAt: Date;
+}, now = new Date()): { caseRecord: CaseRecord; undertaking: Undertaking; auditEvents: AuditEvent[] } {
+  if (!input.undertakingTitle.trim()) throw new Error('An undertaking title is required for an approval decision.')
+  if (!Number.isFinite(input.undertakingDueAt.getTime()) || input.undertakingDueAt.getTime() <= now.getTime()) {
+    throw new Error('The undertaking due date must be after the current demo date.')
+  }
+  const decision = recordDecision(caseRecord, { officerName: input.officerName, role: input.role, decision: 'Approved', reason: input.reason }, now)
+  const at = now.toISOString()
+  const undertaking: Undertaking = {
+    id: `undertaking-${caseRecord.id}-${now.getTime()}`, institutionId: caseRecord.institutionId, caseId: caseRecord.id,
+    title: input.undertakingTitle.trim(), dueAt: input.undertakingDueAt.toISOString(), status: 'Pending', isDemoData: true,
+  }
+  const undertakingEvent = makeAuditEvent({
+    id: `approval-undertaking:${caseRecord.id}:${at}`, at, actorName: input.officerName, actorRole: input.role,
+    action: 'Approval undertaking created', entityType: 'Undertaking', entityId: undertaking.id,
+    detail: `${input.officerName} created the approval condition “${undertaking.title}” due ${undertaking.dueAt}.`,
+    before: 'No undertaking linked to this decision', after: `Pending · due ${undertaking.dueAt}`,
+  })
+  return { caseRecord: decision.caseRecord, undertaking, auditEvents: [decision.auditEvent, undertakingEvent] }
 }
 
 export function verifyDocument(document: DocumentRecord, input: {

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useShallow } from 'zustand/react/shallow'
 import { differenceInCalendarDays, format } from 'date-fns'
 import { Activity, AlertTriangle, ArrowRight, Building2, CalendarDays, CircleHelp, Clock3, FileClock, FileText, Gauge, ShieldCheck, Users } from 'lucide-react'
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
@@ -71,9 +72,9 @@ export default function DashboardPage({ role }: { role: HumanRole }) {
 }
 
 function InstitutionDashboard() {
-  const cases = useCasePilotStore((state) => state.cases.filter((item) => item.institutionId === 'inst-001'))
-  const undertakings = useCasePilotStore((state) => state.undertakings.filter((item) => item.institutionId === 'inst-001'))
-  const documents = useCasePilotStore((state) => state.documents.filter((item) => item.institutionId === 'inst-001'))
+  const cases = useCasePilotStore(useShallow((state) => state.cases.filter((item) => item.institutionId === 'inst-001')))
+  const undertakings = useCasePilotStore(useShallow((state) => state.undertakings.filter((item) => item.institutionId === 'inst-001')))
+  const documents = useCasePilotStore(useShallow((state) => state.documents.filter((item) => item.institutionId === 'inst-001')))
   const now = useCasePilotStore((state) => state.demoNow)
   const outstanding = cases.find((item) => item.status !== 'Closed' && item.stages.some((stage) => stage.status === 'Returned'))
   const next = outstanding ?? [...cases].sort((a, b) => a.updatedAt.localeCompare(b.updatedAt))[0]
@@ -90,8 +91,8 @@ function InstitutionDashboard() {
 }
 
 function RegionalDashboard() {
-  const cases = useCasePilotStore((state) => state.cases.filter((item) => item.region === roleRegion))
-  const officers = useCasePilotStore((state) => state.officers.filter((item) => item.role === 'Regional Officer' && item.region === roleRegion))
+  const cases = useCasePilotStore(useShallow((state) => state.cases.filter((item) => item.region === roleRegion)))
+  const officers = useCasePilotStore(useShallow((state) => state.officers.filter((item) => item.role === 'Regional Officer' && item.region === roleRegion)))
   const now = new Date(useCasePilotStore((state) => state.demoNow))
   const open = cases.filter((item) => item.status !== 'Closed')
   const overdue = open.filter((item) => item.status === 'Overdue')
@@ -126,7 +127,7 @@ function BureauDashboard() {
 }
 
 function CommitteeDashboard() {
-  const cases = useCasePilotStore((state) => state.cases.filter((item) => item.assignedCommitteeId === 'com-01' && item.route.steps.includes('SAC/SHC')))
+  const cases = useCasePilotStore(useShallow((state) => state.cases.filter((item) => item.assignedCommitteeId === 'com-01' && item.route.steps.includes('SAC/SHC'))))
   const observations = useCasePilotStore((state) => state.observations)
   const documents = useCasePilotStore((state) => state.documents)
   const queue = cases.filter((item) => item.currentStage === 'SAC/SHC' || item.stages.some((stage) => stage.label === 'SAC/SHC' && stage.status === 'Completed'))

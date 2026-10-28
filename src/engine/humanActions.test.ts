@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { CaseRecord, DocumentRecord } from '@/data/schemas'
-import { recordDecision, verifyDocument } from './humanActions'
+import { recordDecision, recordDecisionWithUndertaking, verifyDocument } from './humanActions'
 
 const now = new Date('2026-10-28T00:00:00Z')
 const decisionCase: CaseRecord = {
@@ -24,5 +24,21 @@ describe('explicit human actions', () => {
     expect(result.document.verification).toBe('Verified')
     expect(result.document.verifiedBy).toBe('Ritika Anand')
     expect(result.auditEvent.actorRole).toBe('Regional Officer')
+  })
+
+  it('creates a linked undertaking as part of an explicit Authority approval', () => {
+    const result = recordDecisionWithUndertaking(decisionCase, {
+      officerName: 'Vikram Bedi', role: 'Authority', reason: 'Approval granted subject to faculty evidence.',
+      undertakingTitle: 'Submit faculty qualification evidence', undertakingDueAt: new Date('2026-11-27T23:59:00Z'),
+    }, now)
+    expect(result.caseRecord.decision).toBe('Approved')
+    expect(result.undertaking.caseId).toBe(decisionCase.id)
+    expect(result.undertaking.status).toBe('Pending')
+    expect(result.auditEvents.map((event) => event.actorName)).toEqual(['Vikram Bedi', 'Vikram Bedi'])
+    expect(result.auditEvents.map((event) => event.action)).toContain('Approval undertaking created')
+    expect(() => recordDecisionWithUndertaking(decisionCase, {
+      officerName: 'Vikram Bedi', role: 'Authority', reason: 'Decision reason.',
+      undertakingTitle: 'Expired condition', undertakingDueAt: now,
+    }, now)).toThrow('must be after')
   })
 })

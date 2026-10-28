@@ -1,4 +1,4 @@
-import { useMemo, useState, type ButtonHTMLAttributes, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react'
 import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from '@tanstack/react-table'
 import { ChevronDown, ChevronRight, Info } from 'lucide-react'
 import type { CaseStatus } from '@/data/schemas'
@@ -18,7 +18,7 @@ export function Badge({ children, tone = 'neutral' }: { children: ReactNode; ton
 
 const statusClass: Record<CaseStatus, string> = { 'On track': 'status-on-track', 'Due soon': 'status-due-soon', Overdue: 'status-overdue', Escalated: 'status-escalated', Closed: 'status-closed' }
 export function StatusChip({ status }: { status: CaseStatus }) {
-  return <span className={`status-chip ${statusClass[status]}`}><span aria-hidden="true">{status === 'Closed' ? '✓' : status === 'Escalated' ? '!' : '•'}</span>{status}</span>
+  return <span role="status" aria-label={`Case status: ${status}`} className={`status-chip ${statusClass[status]}`}><span aria-hidden="true">{status === 'Closed' ? '✓' : status === 'Escalated' ? '!' : '•'}</span>{status}</span>
 }
 
 export function Input({ className = '', ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
@@ -39,11 +39,38 @@ export function Tooltip({ text, children }: { text: string; children: ReactNode 
 
 export function Dialog({ title, description, trigger, children }: { title: string; description?: string; trigger: ReactNode; children: ReactNode | ((close: () => void) => ReactNode) }) {
   const [open, setOpen] = useState(false)
+  const triggerRef = useRef<HTMLSpanElement>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return undefined
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const trigger = triggerRef.current
+    const getFocusable = () => dialogRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])') ?? []
+    const firstFocusable = getFocusable()[0]
+    ;(firstFocusable ?? dialogRef.current)?.focus()
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); setOpen(false); return }
+      if (event.key !== 'Tab') return
+      const focusable = getFocusable()
+      if (!focusable.length) { event.preventDefault(); dialogRef.current?.focus(); return }
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      const active = document.activeElement
+      if (event.shiftKey && (active === first || !dialogRef.current?.contains(active))) { event.preventDefault(); last.focus() }
+      else if (!event.shiftKey && (active === last || !dialogRef.current?.contains(active))) { event.preventDefault(); first.focus() }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('keydown', onKeyDown)
+      if (previousFocus?.isConnected) previousFocus.focus()
+      else trigger?.querySelector<HTMLElement>('button')?.focus()
+    }
+  }, [open])
   return <>
-    <span onClick={() => setOpen(true)}>{trigger}</span>
+    <span ref={triggerRef} onClick={() => setOpen(true)}>{trigger}</span>
     {open && <div className="fixed inset-0 z-50 grid place-items-center bg-ink/35 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false) }}>
-      <div role="dialog" aria-modal="true" aria-labelledby="dialog-title" className="surface w-full max-w-lg p-6">
-        <div className="mb-5 flex items-start justify-between gap-4"><div><div className="eyebrow">Workflow detail</div><h2 id="dialog-title" className="mt-1 font-heading text-2xl text-forest">{title}</h2>{description && <p className="mt-2 text-sm text-sage">{description}</p>}</div><Button variant="quiet" onClick={() => setOpen(false)} aria-label="Close dialog">×</Button></div>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="dialog-title" aria-describedby={description ? 'dialog-description' : undefined} tabIndex={-1} className="surface w-full max-w-lg p-6">
+        <div className="mb-5 flex items-start justify-between gap-4"><div><div className="eyebrow">Workflow detail</div><h2 id="dialog-title" className="mt-1 font-heading text-2xl text-forest">{title}</h2>{description && <p id="dialog-description" className="mt-2 text-sm text-sage">{description}</p>}</div><Button variant="quiet" onClick={() => setOpen(false)} aria-label="Close dialog">×</Button></div>
         {typeof children === 'function' ? children(() => setOpen(false)) : children}
       </div>
     </div>}
@@ -54,10 +81,10 @@ export function Tabs({ tabs, active, onChange }: { tabs: string[]; active: strin
   return <div role="tablist" className="flex gap-1 border-b border-[var(--hairline)]">{tabs.map((tab) => <button key={tab} role="tab" aria-selected={active === tab} onClick={() => onChange(tab)} className={`px-3 py-2.5 text-sm ${active === tab ? 'border-b-2 border-forest font-semibold text-forest' : 'text-sage'}`}>{tab}</button>)}</div>
 }
 
-export function DataTable<TData>({ data, columns, emptyMessage = 'No records to show.' }: { data: TData[]; columns: ColumnDef<TData, unknown>[]; emptyMessage?: string }) {
+export function DataTable<TData>({ data, columns, emptyMessage = 'No records to show.', label = 'Data table' }: { data: TData[]; columns: ColumnDef<TData, unknown>[]; emptyMessage?: string; label?: string }) {
   const stableColumns = useMemo(() => columns, [columns])
   const table = useReactTable({ data, columns: stableColumns, getCoreRowModel: getCoreRowModel() })
-  return <div className="table-wrap"><table><thead>{table.getHeaderGroups().map((group) => <tr key={group.id}>{group.headers.map((header) => <th key={header.id}>{header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}</th>)}</tr>)}</thead>
+  return <div className="table-wrap"><table aria-label={label}><thead>{table.getHeaderGroups().map((group) => <tr key={group.id}>{group.headers.map((header) => <th key={header.id} scope="col">{header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}</th>)}</tr>)}</thead>
     <tbody>{table.getRowModel().rows.length ? table.getRowModel().rows.map((row) => <tr key={row.id}>{row.getVisibleCells().map((cell) => <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>)}</tr>) : <tr><td colSpan={columns.length} className="py-10 text-center text-sage">{emptyMessage}</td></tr>}</tbody>
   </table></div>
 }

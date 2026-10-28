@@ -70,8 +70,8 @@ function MotionRig() {
   useFrame(({ camera, pointer, clock }) => {
     const scroll = Math.min(1, Math.max(0, window.scrollY / Math.max(1, window.innerHeight * 4)))
     const target = curve.getPoint(0.18 + scroll * 0.42)
-    camera.position.lerp(new Vector3(target.x * 0.24 + pointer.x * 0.28, 2.1 + pointer.y * 0.18, 8.7 - scroll * 1.1), 0.025)
-    camera.lookAt(target.x * 0.2, target.y * 0.12 + Math.sin(clock.elapsedTime * 0.18) * 0.03, 0)
+    camera.position.lerp(new Vector3(1.3 + target.x * 0.24 + pointer.x * 0.28, 2.15 + pointer.y * 0.16, 12.1 - scroll * 0.8), 0.025)
+    camera.lookAt(1.3 + target.x * 0.2, target.y * 0.12 + Math.sin(clock.elapsedTime * 0.18) * 0.03, 0)
   })
   return null
 }
@@ -92,7 +92,7 @@ function SceneContent() {
 export default function CaseFlowScene() {
   return <div className="case-scene" aria-hidden="true">
     <img className="scene-fallback" src="/images/case-flow.svg" alt="" />
-    <Canvas camera={{ position: [0, 2.1, 8.7], fov: 39 }} dpr={[1, 1.5]} gl={{ alpha: true, antialias: true, powerPreference: 'low-power' }} shadows>
+    <Canvas camera={{ position: [0, 2.15, 12.1], fov: 39 }} dpr={[1, 1.5]} gl={{ alpha: true, antialias: true, powerPreference: 'low-power' }} shadows>
       <SceneContent />
     </Canvas>
   </div>

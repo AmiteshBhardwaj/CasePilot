@@ -12,6 +12,7 @@ export function createDefaultWorkflowRules(): WorkflowRuleConfig {
     stageTimelines: { ...stageTimelines },
     escalationRules: defaultEscalationRules.map((rule) => ({ ...rule })),
     complianceAlertDays: [30, 15, 7],
+    complianceEscalationDays: [7, 14, 21],
     channels: ['In-app', 'Email', 'SMS'],
   }
 }

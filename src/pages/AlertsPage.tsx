@@ -55,7 +55,7 @@ export default function AlertsPage({ role }: { role: HumanRole }) {
         const stage = record?.stages.find((item) => item.label === record.currentStage)
         const missing = documents.filter((document) => document.caseId === record?.id && document.verification !== 'Verified').map((document) => document.name)
         const channels = alert.channels ?? ['In-app']
-        const currentLevel = record?.escalationLevel && record.escalationLevel !== 'None' ? record.escalationLevel : alert.ownerId ? 'Regional Officer' : 'Institution'
+        const currentLevel = alert.escalationLevel && alert.escalationLevel !== 'None' ? alert.escalationLevel : record?.escalationLevel && record.escalationLevel !== 'None' ? record.escalationLevel : alert.ownerId ? 'Regional Officer' : 'Institution'
         const currentLevelIndex = escalationLevels.indexOf(currentLevel)
         return <article key={alert.id} className={`grid gap-3 px-5 py-4 xl:grid-cols-[auto_1fr_auto] ${alert.read ? 'bg-cream/20' : ''}`}>
           <span className={`grid h-10 w-10 place-items-center rounded-xl ${alert.severity === 'Critical' ? 'bg-[#F1C1B2] text-[#482219]' : 'bg-[#F4E1B8] text-[#513C18]'}`}><Bell size={17} /></span>

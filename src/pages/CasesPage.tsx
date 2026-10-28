@@ -102,7 +102,7 @@ export default function CasesPage({ role }: { role: HumanRole }) {
     </div>
       <div className="flex flex-wrap items-center gap-2 border-b border-[var(--hairline)] bg-cream/35 px-4 py-3"><span className="section-label">SAVED VIEWS</span>{savedViews.map((view) => <button key={view.name} className="rounded-lg bg-paper px-2.5 py-1.5 text-xs font-semibold text-sage" onClick={() => applySavedView(view)}>{view.name}</button>)}<div className="ml-auto flex gap-2"><Input aria-label="Saved view name" value={saveName} onChange={(event) => setSaveName(event.target.value)} placeholder="Name this view" className="!w-36 !py-1.5 !text-xs" /><Button variant="quiet" className="!px-2 !py-1" onClick={saveCurrentView}><BookmarkPlus size={14} /> Save</Button></div></div>
       <div className="flex flex-wrap items-center gap-3 px-4 py-2.5"><span className="text-xs text-sage">{filtered.length} records · {format(now, 'dd MMM yyyy')} clock</span>{selected.length > 0 && <div className="ml-auto flex items-center gap-2"><span className="text-xs text-sage">{selected.length} selected</span>{canBulkAssign && <Button variant="secondary" className="!py-1.5 !text-xs" onClick={bulkAssign}><Users size={14} /> Assign to me</Button>}</div>}</div>
-      {filtered.length ? <DataTable data={filtered} columns={columns} /> : <EmptyState title="No cases match these filters" description="Adjust the URL-backed filters or clear them to see the full queue." />}
+      {filtered.length ? <DataTable data={filtered} columns={columns} label={`${role} case queue`} /> : <EmptyState title="No cases match these filters" description="Adjust the URL-backed filters or clear them to see the full queue." />}
     </Card>
   </>
 }

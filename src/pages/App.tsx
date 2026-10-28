@@ -1,23 +1,24 @@
-import { useState, type ReactNode } from 'react'
+import { lazy, Suspense, useState, type ReactNode } from 'react'
 import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useNavigate } from 'react-router-dom'
 import { Activity, AlertTriangle, ArrowDownRight, ArrowUpRight, Bell, BookOpen, Building2, CalendarClock, ChartNoAxesCombined, ChevronDown, ClipboardCheck, Clock3, FileText, Files, LayoutDashboard, Menu, RotateCcw, Search, Settings2, ShieldCheck, SlidersHorizontal, Sparkles, Users, Workflow, X } from 'lucide-react'
 import { format } from 'date-fns'
 import type { HumanRole } from '@/data/schemas'
 import { useCasePilotStore } from '@/store/useCasePilotStore'
 import { Button, Card, Select, Timeline } from '@/components/ui'
-import DashboardPage from '@/pages/DashboardPage'
-import CasesPage from '@/pages/CasesPage'
-import CaseDetailPage from '@/pages/CaseDetailPage'
-import ApplicationWizardPage from '@/pages/ApplicationWizardPage'
-import AlertsPage from '@/pages/AlertsPage'
-import EvcPage from '@/pages/EvcPage'
-import ComplianceWorkspace from '@/pages/CompliancePage'
-import DocumentsPage from '@/pages/DocumentsPage'
-import AuditTrailWorkspace from '@/pages/AuditTrailPage'
-import RulesPage from '@/pages/RulesPage'
-import SettingsPage from '@/pages/SettingsPage'
-import ReportsPage from '@/pages/ReportsPage'
-import LandingPage from '@/pages/LandingPage'
+import { Skeleton } from '@/components/ui'
+const LandingPage = lazy(() => import('@/pages/LandingPage'))
+const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
+const CasesPage = lazy(() => import('@/pages/CasesPage'))
+const CaseDetailPage = lazy(() => import('@/pages/CaseDetailPage'))
+const ApplicationWizardPage = lazy(() => import('@/pages/ApplicationWizardPage'))
+const AlertsPage = lazy(() => import('@/pages/AlertsPage'))
+const EvcPage = lazy(() => import('@/pages/EvcPage'))
+const ComplianceWorkspace = lazy(() => import('@/pages/CompliancePage'))
+const DocumentsPage = lazy(() => import('@/pages/DocumentsPage'))
+const AuditTrailWorkspace = lazy(() => import('@/pages/AuditTrailPage'))
+const RulesPage = lazy(() => import('@/pages/RulesPage'))
+const SettingsPage = lazy(() => import('@/pages/SettingsPage'))
+const ReportsPage = lazy(() => import('@/pages/ReportsPage'))
 
 function permittedNavigation(role: HumanRole) {
   const core = [{ to: '/app', label: 'Overview', icon: LayoutDashboard }, { to: '/app/cases', label: role === 'Institution' ? 'My cases' : 'Cases', icon: FileText }]
@@ -33,7 +34,11 @@ function permittedNavigation(role: HumanRole) {
 }
 
 function App() {
-  return <BrowserRouter><Routes><Route path="/" element={<LandingPage />} /><Route path="/login" element={<LoginPage />} /><Route path="/app/*" element={<ProtectedShell />} /><Route path="*" element={<Navigate to="/" replace />} /></Routes></BrowserRouter>
+  return <BrowserRouter><Suspense fallback={<PublicLoading />}><Routes><Route path="/" element={<LandingPage />} /><Route path="/login" element={<LoginPage />} /><Route path="/app/*" element={<ProtectedShell />} /><Route path="*" element={<Navigate to="/" replace />} /></Routes></Suspense></BrowserRouter>
+}
+
+function PublicLoading() {
+  return <main className="min-h-screen bg-cream p-8"><div className="mx-auto max-w-5xl space-y-5"><Skeleton className="h-12 w-48" /><Skeleton className="h-64 w-full" /><div className="grid gap-4 md:grid-cols-3"><Skeleton className="h-32" /><Skeleton className="h-32" /><Skeleton className="h-32" /></div></div></main>
 }
 
 function LoginPage() {
@@ -106,22 +111,22 @@ function Shell({ role }: { role: HumanRole }) {
           <p className="mt-4 border-t border-[var(--hairline)] pt-3 text-[10px] leading-4 text-sage">Scenario seeds are demo data. They do not represent real submissions, inspections or statutory outcomes.</p>
         </section>
       </div>}
-      <main className="page-content"><Routes>
-        <Route path="/app" element={<DashboardPage role={role} />} />
-        <Route path="/app/cases" element={<CasesPage role={role} />} />
-        <Route path="/app/cases/:caseId" element={<CaseDetailPage role={role} />} />
-        <Route path="/app/apply" element={<ApplicationWizardPage role={role} />} />
-        <Route path="/app/compliance" element={<CompliancePage role={role} />} />
-        <Route path="/app/evc" element={<EvcPage role={role} />} />
-        <Route path="/app/documents" element={<DocumentsPage role={role} />} />
-        <Route path="/app/alerts" element={<AlertsPage role={role} />} />
-        <Route path="/app/audit" element={<AuditPage role={role} />} />
-        <Route path="/app/reports" element={<ReportsPage role={role} />} />
-        <Route path="/app/rules" element={<RulesWorkspace role={role} />} />
-        <Route path="/app/settings" element={<SettingsPage role={role} />} />
-        <Route path="/app/debug" element={<DebugPage />} />
+      <main className="page-content"><Suspense fallback={<PageLoading />}><Routes>
+        <Route path="/" element={<DashboardPage role={role} />} />
+        <Route path="cases" element={<CasesPage role={role} />} />
+        <Route path="cases/:caseId" element={<CaseDetailPage role={role} />} />
+        <Route path="apply" element={<ApplicationWizardPage role={role} />} />
+        <Route path="compliance" element={<CompliancePage role={role} />} />
+        <Route path="evc" element={<EvcPage role={role} />} />
+        <Route path="documents" element={<DocumentsPage role={role} />} />
+        <Route path="alerts" element={<AlertsPage role={role} />} />
+        <Route path="audit" element={<AuditPage role={role} />} />
+        <Route path="reports" element={<ReportsPage role={role} />} />
+        <Route path="rules" element={<RulesWorkspace role={role} />} />
+        <Route path="settings" element={<SettingsPage role={role} />} />
+        <Route path="debug" element={<DebugPage />} />
         <Route path="*" element={<Navigate to="/app" replace />} />
-      </Routes></main>
+      </Routes></Suspense></main>
       <footer className="app-footer">Alerts and recommendations support the approval process; they do not replace statutory scrutiny, verification, inspection or decisions by the competent authority.</footer>
     </div>
   </div>
@@ -129,6 +134,10 @@ function Shell({ role }: { role: HumanRole }) {
 
 function PageHeading({ section, title, children }: { section: string; title: string; children?: ReactNode }) {
   return <div className="mb-7 flex flex-wrap items-end justify-between gap-4"><div><div className="eyebrow">{section}</div><h1 className="page-title">{title}</h1></div>{children}</div>
+}
+
+function PageLoading() {
+  return <div className="space-y-4" aria-label="Loading workspace"><Skeleton className="h-7 w-44" /><Skeleton className="h-12 w-80 max-w-full" /><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Skeleton className="h-32" /><Skeleton className="h-32" /><Skeleton className="h-32" /><Skeleton className="h-32" /></div><Skeleton className="h-80 w-full" /></div>
 }
 
 function CompliancePage({ role }: { role: HumanRole }) { return <ComplianceWorkspace role={role} /> }

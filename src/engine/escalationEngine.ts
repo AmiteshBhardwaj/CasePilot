@@ -34,7 +34,7 @@ export function runEscalationEngine(cases: CaseRecord[], now = new Date(), rules
     const nextCase: CaseRecord = { ...caseRecord, escalationLevel: nextLevel, status: 'Escalated', updatedAt: now.toISOString() }
     const message = `${caseRecord.id} aged ${ageDays} days in ${caseRecord.currentStage}; escalation moved to ${nextLevel}.`
     auditEvents.push(makeAuditEvent({ id: `escalation-audit:${caseRecord.id}:${nextLevel}`, at: now.toISOString(), ...ENGINE_ACTOR, action: `Escalated to ${nextLevel}`, entityType: 'Case', entityId: caseRecord.id, detail: message }))
-    alerts.push({ id: `escalation:${caseRecord.id}:${nextLevel}`, type: 'Escalation', severity: nextLevel === 'Authority' ? 'Critical' : 'Warning', title: `Escalated to ${nextLevel}`, message, caseId: caseRecord.id, createdAt: now.toISOString(), read: false, channels, isDemoData: true })
+    alerts.push({ id: `escalation:${caseRecord.id}:${nextLevel}`, type: 'Escalation', severity: nextLevel === 'Authority' ? 'Critical' : 'Warning', title: `Escalated to ${nextLevel}`, message, caseId: caseRecord.id, escalationLevel: nextLevel, createdAt: now.toISOString(), read: false, channels, isDemoData: true })
     return nextCase
   })
   return { cases: updated, alerts, auditEvents }

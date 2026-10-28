@@ -22,9 +22,22 @@ describe('complianceEngine', () => {
 
   it('uses active reminder windows and notification channels during reevaluation', () => {
     const dueSoon = { ...document, verification: 'Verified' as const, expiresAt: '2026-11-05T00:00:00Z' }
-    const result = runComplianceEngine([dueSoon], [], now, { complianceAlertDays: [60, 30, 10], channels: ['In-app', 'Email'] })
+    const result = runComplianceEngine([dueSoon], [], now, { complianceAlertDays: [60, 30, 10], complianceEscalationDays: [7, 14, 21], channels: ['In-app', 'Email'] })
     expect(result.alerts[0].title).toBe('Document expires within 10 days')
     expect(result.alerts[0].channels).toEqual(['In-app', 'Email'])
     expect(result.auditEvents[0].actorRole).toBe('System')
+  })
+
+  it('escalates expired documents and undertakings through configured levels with audit events', () => {
+    const expiredDocument = { ...document, verification: 'Verified' as const, expiresAt: '2026-10-10T00:00:00Z' }
+    const oldUndertaking = { ...undertaking, dueAt: '2026-10-10T00:00:00Z' }
+    const result = runComplianceEngine([expiredDocument], [oldUndertaking], now, {
+      complianceAlertDays: [30, 15, 7], complianceEscalationDays: [3, 6, 9], channels: ['In-app'],
+    })
+    const escalations = result.alerts.filter((alert) => alert.type === 'Escalation')
+    expect(escalations).toHaveLength(2)
+    expect(escalations.every((alert) => alert.escalationLevel === 'Authority')).toBe(true)
+    expect(result.auditEvents.filter((event) => event.action === 'Compliance item escalated to Authority')).toHaveLength(2)
+    expect(result.auditEvents.every((event) => event.actorRole === 'System')).toBe(true)
   })
 })
