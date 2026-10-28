@@ -17,6 +17,7 @@ import AuditTrailWorkspace from '@/pages/AuditTrailPage'
 import RulesPage from '@/pages/RulesPage'
 import SettingsPage from '@/pages/SettingsPage'
 import ReportsPage from '@/pages/ReportsPage'
+import LandingPage from '@/pages/LandingPage'
 
 function permittedNavigation(role: HumanRole) {
   const core = [{ to: '/app', label: 'Overview', icon: LayoutDashboard }, { to: '/app/cases', label: role === 'Institution' ? 'My cases' : 'Cases', icon: FileText }]
@@ -32,7 +33,7 @@ function permittedNavigation(role: HumanRole) {
 }
 
 function App() {
-  return <BrowserRouter><Routes><Route path="/login" element={<LoginPage />} /><Route path="/app/*" element={<ProtectedShell />} /><Route path="*" element={<Navigate to="/login" replace />} /></Routes></BrowserRouter>
+  return <BrowserRouter><Routes><Route path="/" element={<LandingPage />} /><Route path="/login" element={<LoginPage />} /><Route path="/app/*" element={<ProtectedShell />} /><Route path="*" element={<Navigate to="/" replace />} /></Routes></BrowserRouter>
 }
 
 function LoginPage() {
